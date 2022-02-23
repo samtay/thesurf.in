@@ -1,0 +1,7 @@
+[workspace]
+
+members = [
+  "lib",
+  # "cli",
+  # "server",
+]
