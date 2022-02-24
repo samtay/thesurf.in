@@ -38,6 +38,7 @@ fn parse_spot_ids<T: Write>(html: &str, writer: T) -> Result<()> {
     let spot_anchors = Selector::parse("h1.header + table a").unwrap();
     let document = Html::parse_document(html);
     for anchor in document.select(&spot_anchors) {
+        // TODO actually just make this an integer
         let spot_id = anchor
             .value()
             .attr("href")
