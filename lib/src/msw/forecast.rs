@@ -1,4 +1,4 @@
-use anyhow::{bail, Result};
+use anyhow::Result;
 use reqwest::{blocking::Client, Url};
 use serde::Deserialize;
 
@@ -22,7 +22,7 @@ pub struct Swell {
     pub abs_min_breaking_height: f32,
     pub max_breaking_height: u8,
     pub abs_max_breaking_height: f32,
-    pub unit: String, // TODO enum "ft",
+    pub unit: UnitLength,
     pub components: SwellComponents,
 }
 
@@ -41,7 +41,7 @@ pub struct SwellComponent {
     pub height: f32,
     pub period: u8,
     pub direction: f32,
-    pub compass_direction: String, // TODO enum "W"
+    pub compass_direction: CompassDirection,
 }
 
 #[derive(Debug, Deserialize, PartialEq)]
@@ -49,10 +49,10 @@ pub struct SwellComponent {
 pub struct Wind {
     pub speed: u16,
     pub direction: f32,
-    pub compass_direction: String, // or custom direction enum
+    pub compass_direction: CompassDirection,
     pub chill: i16,
     pub gusts: u16,
-    pub unit: String, // or custom unit enum "mph"
+    pub unit: UnitSpeed,
 }
 
 #[derive(Debug, Deserialize, PartialEq)]
@@ -60,9 +60,9 @@ pub struct Wind {
 pub struct Condition {
     pub pressure: u16,
     pub temperature: i16,
-    pub unit_pressure: String, // or custom enum
+    pub unit_pressure: String, // display purposes only
     #[serde(rename = "unit")]
-    pub unit_temperature: String, // custom enum
+    pub unit_temperature: UnitTemperature,
 }
 
 // or URL types
@@ -74,6 +74,49 @@ pub struct Charts {
     pub wind: String,
     pub pressure: String,
     pub sst: String,
+}
+
+#[derive(Debug, Deserialize, PartialEq)]
+pub enum UnitLength {
+    #[serde(rename = "ft")]
+    Feet,
+    #[serde(rename = "m")]
+    Meters,
+}
+
+#[derive(Debug, Deserialize, PartialEq)]
+#[serde(rename_all = "lowercase")]
+pub enum UnitSpeed {
+    Mph,
+    Kph,
+}
+
+#[derive(Debug, Deserialize, PartialEq)]
+#[serde(rename_all = "lowercase")]
+pub enum UnitTemperature {
+    C,
+    F,
+}
+
+#[derive(Debug, Deserialize, PartialEq)]
+#[serde(rename_all = "UPPERCASE")]
+pub enum CompassDirection {
+    N,
+    NNE,
+    NE,
+    ENE,
+    E,
+    ESE,
+    SE,
+    SSE,
+    S,
+    SSW,
+    SW,
+    WSW,
+    W,
+    WNW,
+    NW,
+    NNW,
 }
 
 pub struct ForecastAPI {
@@ -113,8 +156,6 @@ impl Default for ForecastAPI {
 
 #[cfg(test)]
 mod tests {
-    use serde_json::json;
-
     use super::*;
 
     #[test]
@@ -186,19 +227,19 @@ mod tests {
                 abs_max_breaking_height: 3.48,
                 min_breaking_height: 2,
                 max_breaking_height: 3,
-                unit: "ft".to_string(),
+                unit: UnitLength::Feet,
                 components: SwellComponents {
                     combined: Some(SwellComponent {
                         height: 4.0,
                         period: 10,
                         direction: 271.53,
-                        compass_direction: "E".to_string(),
+                        compass_direction: CompassDirection::E,
                     }),
                     primary: Some(SwellComponent {
                         height: 4.0,
                         period: 10,
                         direction: 271.53,
-                        compass_direction: "E".to_string(),
+                        compass_direction: CompassDirection::E,
                     }),
                     secondary: None,
                     tertiary: None,
@@ -207,17 +248,17 @@ mod tests {
             wind: Wind {
                 speed: 7,
                 direction: 335.0,
-                compass_direction: "SSE".to_string(),
+                compass_direction: CompassDirection::SSE,
                 chill: 21,
                 gusts: 12,
-                unit: "mph".to_string(),
+                unit: UnitSpeed::Mph,
             },
             condition: Condition {
                 pressure: 1023,
                 temperature: 20,
                 //weather: 10,
                 unit_pressure: "mb".to_string(),
-                unit_temperature: "c".to_string(),
+                unit_temperature: UnitTemperature::C,
             },
             charts: Charts {
                 swell: "https://charts-s3.msw.ms/archive/wave/750/21-1645671600-24.gif".to_string(),
