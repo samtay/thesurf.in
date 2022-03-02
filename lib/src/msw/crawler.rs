@@ -46,8 +46,12 @@ fn parse_spot_ids<T: Write>(html: &str, writer: T) -> Result<()> {
             .map(|(_, spot_id)| spot_id.to_owned())
             .filter(|s| s.chars().all(|c| c.is_digit(10)))
             .ok_or(anyhow!("Failed to parse spot ID from HTML anchor"))?;
-        // TODO kebab case
-        let spot_name = anchor.inner_html();
+        let spot_name = anchor
+            .inner_html()
+            .to_lowercase()
+            .split_whitespace()
+            .collect::<Vec<_>>()
+            .join("-");
         spot_json_map.insert(spot_name, Value::String(spot_id));
     }
     to_writer(writer, &Value::Object(spot_json_map))?;
@@ -73,6 +77,6 @@ mod tests {
         parse_spot_ids(&html, &mut buffer).unwrap();
         buffer.set_position(0);
         let spots: Value = serde_json::from_reader(buffer).unwrap();
-        assert_eq!(*spots.get("Ormond Beach").unwrap(), json!("4203"));
+        assert_eq!(*spots.get("ormond-beach").unwrap(), json!("4203"));
     }
 }
