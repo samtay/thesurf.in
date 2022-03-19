@@ -3,5 +3,5 @@
 members = [
   "lib",
   "cli",
-  # "server",
+  "server",
 ]

@@ -1,5 +1,5 @@
 use anyhow::Result;
-use reqwest::{blocking::Client, Url};
+use reqwest::{Client, Url};
 use serde::Deserialize;
 
 #[derive(Debug, Deserialize, PartialEq)]
@@ -69,11 +69,11 @@ pub struct Condition {
 #[derive(Debug, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct Charts {
-    pub swell: String,
-    pub period: String,
-    pub wind: String,
-    pub pressure: String,
-    pub sst: String,
+    pub swell: Option<String>,
+    pub period: Option<String>,
+    pub wind: Option<String>,
+    pub pressure: Option<String>,
+    pub sst: Option<String>,
 }
 
 #[derive(Debug, Deserialize, PartialEq)]
@@ -133,7 +133,7 @@ impl ForecastAPI {
     /// Gets forecast for the given spot ID
     ///
     /// https://magicseaweed.com/api/YOURAPIKEY/forecast/?spot_id=10
-    pub fn get(&self, spot_id: u16) -> Result<Vec<Forecast>> {
+    pub async fn get(&self, spot_id: u16) -> Result<Vec<Forecast>> {
         let mut api_url = Url::parse("https://magicseaweed.com/api/")?;
         api_url
             .path_segments_mut()
@@ -143,7 +143,7 @@ impl ForecastAPI {
         api_url
             .query_pairs_mut()
             .append_pair("spot_id", &spot_id.to_string());
-        let forecast = self.client.get(api_url).send()?.json()?;
+        let forecast = self.client.get(api_url).send().await?.json().await?;
         Ok(forecast)
     }
 }
@@ -157,11 +157,12 @@ impl Default for ForecastAPI {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use tokio;
 
-    #[test]
+    #[tokio::test]
     #[ignore]
-    fn forecast_works() {
-        let forecast = ForecastAPI::new().get(4203);
+    async fn forecast_works() {
+        let forecast = ForecastAPI::new().get(4203).await;
         assert!(forecast.is_ok());
     }
 
@@ -261,13 +262,21 @@ mod tests {
                 unit_temperature: UnitTemperature::C,
             },
             charts: Charts {
-                swell: "https://charts-s3.msw.ms/archive/wave/750/21-1645671600-24.gif".to_string(),
-                period: "https://charts-s3.msw.ms/archive/wave/750/21-1645671600-25.gif"
-                    .to_string(),
-                wind: "https://charts-s3.msw.ms/archive/gfs/750/21-1645671600-4.gif".to_string(),
-                pressure: "https://charts-s3.msw.ms/archive/gfs/750/21-1645671600-3.gif"
-                    .to_string(),
-                sst: "https://charts-s3.msw.ms/archive/sst/750/21-1645671600-10.gif".to_string(),
+                swell: Some(
+                    "https://charts-s3.msw.ms/archive/wave/750/21-1645671600-24.gif".to_string(),
+                ),
+                period: Some(
+                    "https://charts-s3.msw.ms/archive/wave/750/21-1645671600-25.gif".to_string(),
+                ),
+                wind: Some(
+                    "https://charts-s3.msw.ms/archive/gfs/750/21-1645671600-4.gif".to_string(),
+                ),
+                pressure: Some(
+                    "https://charts-s3.msw.ms/archive/gfs/750/21-1645671600-3.gif".to_string(),
+                ),
+                sst: Some(
+                    "https://charts-s3.msw.ms/archive/sst/750/21-1645671600-10.gif".to_string(),
+                ),
             },
         };
         assert_eq!(
