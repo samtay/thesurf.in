@@ -1,4 +1,4 @@
-use anyhow::Result;
+use anyhow::{anyhow, Result};
 use reqwest::{Client, Url};
 use serde::Deserialize;
 
@@ -135,10 +135,11 @@ impl ForecastAPI {
     /// https://magicseaweed.com/api/YOURAPIKEY/forecast/?spot_id=10
     pub async fn get(&self, spot_id: u16) -> Result<Vec<Forecast>> {
         let mut api_url = Url::parse("https://magicseaweed.com/api/")?;
+        let api_key = option_env!("MSW_API_KEY").ok_or(anyhow!("Missing API Key"))?;
         api_url
             .path_segments_mut()
             .expect("https:// scheme implies URL can be a base")
-            .push(env!("MSW_API_KEY"))
+            .push(api_key)
             .push("forecast");
         api_url
             .query_pairs_mut()

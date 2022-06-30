@@ -1,24 +1,25 @@
 # todo
 
-### prereqs
-0. Draw out what the graph will look like
-0. Scrape the sitemap for forecast IDs (periodically - thread for web server, cmd for cli?)
-0. Cache in file system or DB or what? Track in git and load at compile time?
+1. Drop the cli? Neat but.. not really necessary. Keep a binary for updating
+   spots json.
+2. Do a basic key to mapping. E.g. /Folly, /Folly-Beach, /FollyBeach,
+   /folly-beach-sc, /folly-sc should all get to the same spot ID.
 
-### app runtime
-1. hit MSW API (only fields we need)
-2. cache the results (OR NOT?) (invalidate every 3hrs) db for server ? .cache directory for cli?
-3. models representing the forecast data. potentially parse the forecast data at
-   the time of fetching into more efficient format for getting into models?
+### prereqs
+1. Draw out what the graph will look like
 
 ### app config
-4. secrets mgmt for api key
+1. secrets mgmt for api key
 
+### questions for later
+1. Periodically scrape the sitemap for forecast IDs?
+2. External memory store e.g. redis or hashmap of spot IDs OK?
+1. Cache the MSW responses? (invalidate every 3hrs)
 
 # Dev Plan
 1. Maybe for now require path `curl thesurf.in/ormond-beach`
-2. Then allow disambiguation `thesurf.in/ormond-beach-ca` or `thesurf.in/ormond-beach-fl`
-3. Then use user agent location plus lat/long scraped from MSW to allow `curl
+1. Then allow disambiguation `thesurf.in/ormond-beach-ca` or `thesurf.in/ormond-beach-fl`
+1. Then use user agent location plus lat/long scraped from MSW to allow `curl
    thesurf.in` to find the closest one.
 
 

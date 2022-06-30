@@ -1,29 +1,41 @@
 use actix_web::{
-    error::ErrorInternalServerError, get, web, App, HttpResponse, HttpServer, Responder, Result,
+    error::{ErrorInternalServerError, ErrorNotFound},
+    get, web, App, HttpResponse, HttpServer, Responder, Result,
 };
-use lib::msw::forecast::ForecastAPI;
+use lib::msw::{crawler::Spots, forecast::ForecastAPI};
+
+// std::io::Error::new(std::io::ErrorKind::Other, e)
 
 #[actix_web::main]
-async fn main() -> std::io::Result<()> {
-    HttpServer::new(|| App::new().service(hello).service(spot))
-        .bind(("127.0.0.1", 8080))?
-        .run()
-        .await
+async fn main() -> anyhow::Result<()> {
+    let spot_data = web::Data::new(Spots::new()?);
+    HttpServer::new(move || {
+        App::new()
+            .service(ping)
+            .service(spot)
+            .app_data(spot_data.clone())
+    })
+    .bind(("127.0.0.1", 8080))?
+    .run()
+    .await?;
+    Ok(())
 }
 
-#[get("/")]
-async fn hello() -> impl Responder {
-    HttpResponse::Ok().body("Hello world!")
+#[get("/ping")]
+async fn ping() -> impl Responder {
+    HttpResponse::Ok().body("pong")
 }
 
 #[get("/{spot_id}")]
-async fn spot(path: web::Path<u16>) -> Result<impl Responder> {
-    let spot_id = path.into_inner();
-    // TODO use a custom error enum for 404s on missing spot names
-    // https://actix.rs/docs/errors/
+async fn spot(spot_name: web::Path<String>, spots: web::Data<Spots>) -> Result<impl Responder> {
+    let spot_id = spots
+        .get_id(&**spot_name)
+        .ok_or_else(|| ErrorNotFound("spot name not found"))?;
     let forecast = ForecastAPI::new()
         .get(spot_id)
         .await
         .map_err(|e| ErrorInternalServerError(e.to_string()))?;
     Ok(format!("{:#?}", forecast))
 }
+
+// TODO add tests for each endpoint

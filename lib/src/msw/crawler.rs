@@ -1,9 +1,9 @@
-use anyhow::{anyhow, Result};
+use anyhow::{anyhow, Context, Result};
 use reqwest::blocking::Client;
 use scraper::html::Html;
 use scraper::selector::Selector;
 use serde_json::{to_writer, Map, Value};
-use std::{fs::File, io::Write};
+use std::{collections::HashMap, fs::File, io::Write, path::Path};
 
 pub struct Crawler {
     client: Client,
@@ -38,21 +38,20 @@ fn parse_spot_ids<T: Write>(html: &str, writer: T) -> Result<()> {
     let spot_anchors = Selector::parse("h1.header + table a").unwrap();
     let document = Html::parse_document(html);
     for anchor in document.select(&spot_anchors) {
-        // TODO actually just make this an integer
-        let spot_id = anchor
+        let spot_id: u16 = anchor
             .value()
             .attr("href")
             .and_then(|href| href.trim_end_matches('/').rsplit_once('/'))
             .map(|(_, spot_id)| spot_id.to_owned())
-            .filter(|s| s.chars().all(|c| c.is_digit(10)))
-            .ok_or(anyhow!("Failed to parse spot ID from HTML anchor"))?;
+            .ok_or(anyhow!("Failed to find spot ID in HTML anchor"))
+            .and_then(|s| s.parse().context("Couldn't parse spot ID into integer"))?;
         let spot_name = anchor
             .inner_html()
             .to_lowercase()
             .split_whitespace()
             .collect::<Vec<_>>()
             .join("-");
-        spot_json_map.insert(spot_name, Value::String(spot_id));
+        spot_json_map.insert(spot_name, spot_id.into());
     }
     to_writer(writer, &Value::Object(spot_json_map))?;
     Ok(())
@@ -61,6 +60,28 @@ fn parse_spot_ids<T: Write>(html: &str, writer: T) -> Result<()> {
 impl Default for Crawler {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+pub struct Spots {
+    spots: HashMap<String, u16>,
+}
+
+impl Spots {
+    /// Create a new Spots struct, pulling data from ./data/spots.json
+    pub fn new() -> Result<Self> {
+        Self::from_path("./data/spots.json")
+    }
+
+    /// Create a new Spots struct, pulling data from the given path
+    pub fn from_path<P: AsRef<Path>>(path: P) -> Result<Self> {
+        let spots = serde_json::from_reader(File::open(path)?)?;
+        Ok(Self { spots })
+    }
+
+    /// Search the spots data for the MSW spot identifier (the integer)
+    pub fn get_id<'a>(&self, name: impl Into<&'a str>) -> Option<u16> {
+        self.spots.get(name.into()).copied()
     }
 }
 
@@ -74,9 +95,9 @@ mod tests {
     fn crawl_works() {
         let html = include_str!("../../../test/msw/site-map.html");
         let mut buffer = Cursor::new(Vec::new());
-        parse_spot_ids(&html, &mut buffer).unwrap();
+        parse_spot_ids(html, &mut buffer).unwrap();
         buffer.set_position(0);
         let spots: Value = serde_json::from_reader(buffer).unwrap();
-        assert_eq!(*spots.get("ormond-beach").unwrap(), json!("4203"));
+        assert_eq!(*spots.get("ormond-beach").unwrap(), json!(4203));
     }
 }
