@@ -161,7 +161,7 @@ mod tests {
     use tokio;
 
     #[tokio::test]
-    #[ignore]
+    #[ignore = "Dont hit MSW API in default test runs"]
     async fn forecast_works() {
         let forecast = ForecastAPI::new().get(4203).await;
         assert!(forecast.is_ok());

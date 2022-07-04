@@ -1,9 +1,11 @@
 # todo
 
-### qol
+### misc
 1. drop the cli
 1. do basic key mapping: e.g. /Folly, /Folly-Beach, /FollyBeach,
    /folly-beach-sc, /folly-sc should all get to the same spot ID.
+1. query only what we _want_ from MSW, e.g.
+    http://magicseaweed.com/api/YOURAPIKEY/forecast/?spot_id=10&fields=timestamp,wind.*,condition.temperature
 
 ### ui/rendering
 1. figure out graph design
