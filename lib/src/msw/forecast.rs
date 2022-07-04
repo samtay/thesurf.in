@@ -1,12 +1,14 @@
 use anyhow::{anyhow, Result};
+use chrono::NaiveDateTime;
 use reqwest::{Client, Url};
 use serde::Deserialize;
 
 #[derive(Debug, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct Forecast {
-    pub timestamp: i64, // or decode into date time type?
-    pub local_timestamp: i64,
+    pub timestamp: i64,
+    #[serde(deserialize_with = "timestamp_fmt::deserialize")]
+    pub local_timestamp: NaiveDateTime,
     pub faded_rating: u8, // or custom star rating enum
     pub solid_rating: u8,
     pub swell: Swell,
@@ -155,6 +157,20 @@ impl Default for ForecastAPI {
     }
 }
 
+mod timestamp_fmt {
+    use chrono::NaiveDateTime;
+    use serde::{Deserialize, Deserializer};
+
+    pub fn deserialize<'de, D>(deserializer: D) -> Result<NaiveDateTime, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let timestamp = i64::deserialize(deserializer)?;
+        NaiveDateTime::from_timestamp_opt(timestamp, 0)
+            .ok_or_else(|| serde::de::Error::custom("Timestamp seconds out of range"))
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -219,9 +235,10 @@ mod tests {
             "sst": "https://charts-s3.msw.ms/archive/sst/750/21-1645671600-10.gif"
           }
         }"#;
+        let expected_local_timestamp = NaiveDateTime::from_timestamp(1645660800, 0);
         let expected_forecast = Forecast {
             timestamp: 1645678800,
-            local_timestamp: 1645660800,
+            local_timestamp: expected_local_timestamp,
             faded_rating: 1, // or custom star rating enum
             solid_rating: 1,
             swell: Swell {
@@ -283,6 +300,10 @@ mod tests {
         assert_eq!(
             serde_json::from_str::<'_, Forecast>(msw_json).unwrap(),
             expected_forecast
+        );
+        assert_eq!(
+            expected_local_timestamp.to_string(),
+            "2022-02-24 00:00:00".to_string()
         );
     }
 }
