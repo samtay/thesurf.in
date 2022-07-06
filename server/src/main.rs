@@ -3,6 +3,7 @@ use actix_web::{
     get, web, App, HttpResponse, HttpServer, Responder, Result,
 };
 use lib::msw::{crawler::Spots, forecast::ForecastAPI};
+use lib::ui;
 
 // std::io::Error::new(std::io::ErrorKind::Other, e)
 
@@ -35,7 +36,7 @@ async fn spot(spot_name: web::Path<String>, spots: web::Data<Spots>) -> Result<i
         .get(spot_id)
         .await
         .map_err(|e| ErrorInternalServerError(e.to_string()))?;
-    Ok(format!("{:#?}", forecast))
+    Ok(ui::render::<ui::Terminal>(forecast))
 }
 
 // TODO add tests for each endpoint

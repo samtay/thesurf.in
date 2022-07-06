@@ -1,9 +1,11 @@
+use std::fmt::Display;
+
 use anyhow::{anyhow, Result};
 use chrono::NaiveDateTime;
 use reqwest::{Client, Url};
 use serde::Deserialize;
 
-#[derive(Debug, Deserialize, PartialEq)]
+#[derive(Clone, Debug, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct Forecast {
     pub timestamp: i64,
@@ -17,18 +19,18 @@ pub struct Forecast {
     pub charts: Charts,
 }
 
-#[derive(Debug, Deserialize, PartialEq)]
+#[derive(Clone, Copy, Debug, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct Swell {
-    pub min_breaking_height: u8,
+    pub min_breaking_height: u16,
     pub abs_min_breaking_height: f32,
-    pub max_breaking_height: u8,
+    pub max_breaking_height: u16,
     pub abs_max_breaking_height: f32,
     pub unit: UnitLength,
     pub components: SwellComponents,
 }
 
-#[derive(Debug, Deserialize, PartialEq)]
+#[derive(Clone, Copy, Debug, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct SwellComponents {
     pub combined: Option<SwellComponent>,
@@ -37,16 +39,16 @@ pub struct SwellComponents {
     pub tertiary: Option<SwellComponent>,
 }
 
-#[derive(Debug, Deserialize, PartialEq)]
+#[derive(Clone, Copy, Debug, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct SwellComponent {
     pub height: f32,
-    pub period: u8,
+    pub period: u16,
     pub direction: f32,
     pub compass_direction: CompassDirection,
 }
 
-#[derive(Debug, Deserialize, PartialEq)]
+#[derive(Clone, Copy, Debug, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct Wind {
     pub speed: u16,
@@ -57,7 +59,7 @@ pub struct Wind {
     pub unit: UnitSpeed,
 }
 
-#[derive(Debug, Deserialize, PartialEq)]
+#[derive(Clone, Debug, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct Condition {
     pub pressure: u16,
@@ -68,7 +70,7 @@ pub struct Condition {
 }
 
 // or URL types
-#[derive(Debug, Deserialize, PartialEq)]
+#[derive(Clone, Debug, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct Charts {
     pub swell: Option<String>,
@@ -78,7 +80,7 @@ pub struct Charts {
     pub sst: Option<String>,
 }
 
-#[derive(Debug, Deserialize, PartialEq)]
+#[derive(Clone, Copy, Debug, Deserialize, PartialEq)]
 pub enum UnitLength {
     #[serde(rename = "ft")]
     Feet,
@@ -86,21 +88,30 @@ pub enum UnitLength {
     Meters,
 }
 
-#[derive(Debug, Deserialize, PartialEq)]
+impl Display for UnitLength {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match *self {
+            Self::Feet => write!(f, "ft"),
+            Self::Meters => write!(f, "m"),
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, PartialEq)]
 #[serde(rename_all = "lowercase")]
 pub enum UnitSpeed {
     Mph,
     Kph,
 }
 
-#[derive(Debug, Deserialize, PartialEq)]
+#[derive(Clone, Copy, Debug, Deserialize, PartialEq)]
 #[serde(rename_all = "lowercase")]
 pub enum UnitTemperature {
     C,
     F,
 }
 
-#[derive(Debug, Deserialize, PartialEq)]
+#[derive(Clone, Copy, Debug, Deserialize, PartialEq)]
 #[serde(rename_all = "UPPERCASE")]
 pub enum CompassDirection {
     N,

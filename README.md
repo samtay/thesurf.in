@@ -6,6 +6,7 @@
    /folly-beach-sc, /folly-sc should all get to the same spot ID.
 1. query only what we _want_ from MSW, e.g.
     http://magicseaweed.com/api/YOURAPIKEY/forecast/?spot_id=10&fields=timestamp,wind.*,condition.temperature
+1. damn, no tides from MSW! can do Marea API for $5/month: https://api.marea.ooo/doc/v2#get-/tides
 
 ### ui/rendering
 1. figure out graph design
@@ -31,3 +32,10 @@
 1. choose server e.g. linode
 1. auto GH action deployment
 1. secrets mgmt for msw api key
+
+# limitations
+
+Most are accustomed to green == clean, blue == ok, red == choppy; but MSW
+doesn't provide me with whether or not the wind is on/off/cross shore. So I'm
+using the (probably not great) proxy of their faded stars. 0-1 faded => green,
+2 => blue, 3-5 => red.
