@@ -167,7 +167,6 @@ impl Graph {
     // TODO
     // 2. possibly just go line by line rather than by vertical bins
     // 3. let 0-index refer to bottom of the graph, and build it up (more readable)
-    // 4. avoid all the cloning (fixable by 2?)
     fn swell_graph(&self) -> Vec<Line> {
         let (legend_bin, legend_width) = self.legend_column();
         let num_bins = self.forecast.len();
@@ -177,22 +176,22 @@ impl Graph {
         let right_margin = INTERIOR_VIEWPOINT_WIDTH - used_space;
 
         // Initialize with blank spans of the correct width
-        let mut bins =
-            vec![
-                vec![Span::new(format!("{:width$}", "", width = bin_width)); SWELL_GRAPH_HEIGHT];
-                num_bins
-            ];
-        let mut boundaries = vec![vec![Span::new(" "); SWELL_GRAPH_HEIGHT]; num_bin_boundaries];
+        let mut bins = vec![
+            vec![Span::new(format!("{:width$}", "", width = bin_width)); num_bins];
+            SWELL_GRAPH_HEIGHT
+        ];
+        let mut boundaries = vec![vec![Span::new(" "); num_bin_boundaries]; SWELL_GRAPH_HEIGHT];
 
         let mut last_height = None;
-        for (x, bin) in bins.iter_mut().enumerate() {
+        for x in 0..num_bins {
             let fc = &self.forecast[x];
             // TODO height is reversed; maybe assemble graph bottom up?
             let height = SWELL_GRAPH_HEIGHT - self.scale(fc.swell.abs_max_breaking_height);
             let color = Self::color(fc);
 
             // Fill in bin
-            for (y, span) in bin.iter_mut().enumerate() {
+            for (y, bin_line) in bins.iter_mut().enumerate() {
+                let span = &mut bin_line[x];
                 match height.cmp(&y) {
                     Ordering::Equal => {
                         *span = Span::new(format!("{:─^width$}", "", width = bin_width))
@@ -206,7 +205,8 @@ impl Graph {
             }
             // Fill in left-side boundary
             if let Some(last_height) = last_height {
-                for (y, span) in boundaries[x - 1].iter_mut().enumerate() {
+                for (y, boundary_line) in boundaries.iter_mut().enumerate() {
+                    let span = &mut boundary_line[x - 1];
                     match (
                         height.cmp(&last_height),
                         height.cmp(&y),
@@ -240,19 +240,9 @@ impl Graph {
         // TODO re-think this so we dont clone and shit
         // Building bottom up might just let us pop off from Vec
         let mut lines = Vec::new();
-        for y in 0..SWELL_GRAPH_HEIGHT {
-            let mut line: Vec<Span> = std::iter::once(legend_bin[y].clone())
-                .chain(
-                    bins.clone()
-                        .into_iter()
-                        .map(|bin| bin[y].clone())
-                        //bins[..][y]
-                        .clone()
-                        .into_iter()
-                        //.interleave(boundaries[..][y].clone()),
-                        .interleave(boundaries.clone().into_iter().map(|b| b[y].clone())),
-                )
-                .collect();
+        for ((legend, bin), boundary) in legend_bin.into_iter().zip(bins).zip(boundaries) {
+            let mut line: Vec<Span> = vec![legend];
+            line.extend(bin.into_iter().interleave(boundary));
             line.push(Span::new(format!("{:width$}", "", width = right_margin)));
             lines.push(line);
         }
