@@ -165,47 +165,24 @@ impl Graph {
 
     /// Generate the swell graph within the border box
     // TODO
-    // 1. split up into sub functions
     // 2. possibly just go line by line rather than by vertical bins
     // 3. let 0-index refer to bottom of the graph, and build it up (more readable)
     // 4. avoid all the cloning (fixable by 2?)
     fn swell_graph(&self) -> Vec<Line> {
-        let unit_str = format!("{}", self.midnight.swell.unit);
-        let legend_max_str = format!("{}", self.max_swell_height);
-        let legend_min_str = format!("{}", self.min_swell_height);
-        let legend_num_str_len = legend_min_str.len().max(legend_max_str.len());
-        let legend_width = legend_num_str_len + unit_str.len() + 2;
-        let legend_max = format!(
-            "{:>width$} {} ",
-            legend_max_str,
-            unit_str,
-            width = legend_num_str_len
-        );
-        let legend_min = format!(
-            "{:>width$} {} ",
-            legend_min_str,
-            unit_str,
-            width = legend_num_str_len
-        );
-
+        let (legend_bin, legend_width) = self.legend_column();
         let num_bins = self.forecast.len();
         let num_bin_boundaries = num_bins - 1;
         let bin_width = (INTERIOR_VIEWPOINT_WIDTH - legend_width - num_bin_boundaries) / num_bins;
         let used_space = legend_width + num_bin_boundaries + num_bins * bin_width;
         let right_margin = INTERIOR_VIEWPOINT_WIDTH - used_space;
 
-        let mut legend_bin =
-            vec![Span::new(format!("{:width$}", "", width = legend_width)); SWELL_GRAPH_HEIGHT];
+        // Initialize with blank spans of the correct width
         let mut bins =
             vec![
                 vec![Span::new(format!("{:width$}", "", width = bin_width)); SWELL_GRAPH_HEIGHT];
                 num_bins
             ];
         let mut boundaries = vec![vec![Span::new(" "); SWELL_GRAPH_HEIGHT]; num_bin_boundaries];
-
-        // 0 is the top of the graph
-        legend_bin[0] = Span::new(legend_max);
-        legend_bin[SWELL_GRAPH_HEIGHT - 1] = Span::new(legend_min);
 
         let mut last_height = None;
         for (x, bin) in bins.iter_mut().enumerate() {
@@ -280,6 +257,33 @@ impl Graph {
             lines.push(line);
         }
         lines
+    }
+
+    /// Generate the legend_column and its width
+    /// Assumes 0 is the top of the graph
+    fn legend_column(&self) -> (Vec<Span>, usize) {
+        let unit_str = format!("{}", self.midnight.swell.unit);
+        let legend_max_str = format!("{}", self.max_swell_height);
+        let legend_min_str = format!("{}", self.min_swell_height);
+        let legend_num_str_len = legend_min_str.len().max(legend_max_str.len());
+        let legend_width = legend_num_str_len + unit_str.len() + 2;
+        let legend_max = format!(
+            "{:>width$} {} ",
+            legend_max_str,
+            unit_str,
+            width = legend_num_str_len
+        );
+        let legend_min = format!(
+            "{:>width$} {} ",
+            legend_min_str,
+            unit_str,
+            width = legend_num_str_len
+        );
+        let mut legend_bin =
+            vec![Span::new(format!("{:width$}", "", width = legend_width)); SWELL_GRAPH_HEIGHT];
+        legend_bin[0] = Span::new(legend_max);
+        legend_bin[SWELL_GRAPH_HEIGHT - 1] = Span::new(legend_min);
+        (legend_bin, legend_width)
     }
 
     fn scale(&self, height: f32) -> usize {
