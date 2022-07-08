@@ -1,3 +1,5 @@
+use std::{fs::File, io::BufReader};
+
 use actix_web::{
     error::{ErrorInternalServerError, ErrorNotFound},
     get, web, App, HttpResponse, HttpServer, Responder, Result,
@@ -14,6 +16,7 @@ async fn main() -> anyhow::Result<()> {
         App::new()
             .service(ping)
             .service(spot)
+            .service(test_todo_remove)
             .app_data(spot_data.clone())
     })
     .bind(("127.0.0.1", 8080))?
@@ -37,6 +40,15 @@ async fn spot(spot_name: web::Path<String>, spots: web::Data<Spots>) -> Result<i
         .await
         .map_err(|e| ErrorInternalServerError(e.to_string()))?;
     Ok(ui::render::<ui::Terminal>(forecast))
+}
+
+#[get("/test/")]
+async fn test_todo_remove() -> Result<impl Responder> {
+    let file = File::open("./test/msw/forecast.json")?;
+    let reader = BufReader::new(file);
+    let fc = serde_json::from_reader(reader)?;
+    let output = ui::render::<ui::Terminal>(fc);
+    Ok(output)
 }
 
 // TODO add tests for each endpoint
