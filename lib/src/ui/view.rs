@@ -12,13 +12,6 @@ const VIEWPOINT_WIDTH: usize = 88;
 /// Viewpoint width minus the border chars
 const INTERIOR_VIEWPOINT_WIDTH: usize = VIEWPOINT_WIDTH - 2;
 
-// E.g. " Wed Jul 06 - Sun Jul 10 " with whitespace margins
-const GRAPH_TITLE_WIDTH: usize = 25;
-const SWELL_GRAPH_HEIGHT: usize = 10;
-
-// E.g. " Wed 06 Jul " with whitespace margins
-const DAY_TITLE_WIDTH: usize = 12;
-
 const LINE_VERT: &str = "│";
 const LINE_HORIZONTAL: &str = "─";
 const CORNER_TOP_LEFT: &str = "┌";
@@ -52,46 +45,22 @@ impl View {
     }
 }
 
-/// The swell graph over a multi-day forecast
-struct Graph<'a> {
-    forecast: &'a Vec<Forecast>,
-    min_swell_height: u16,
-    max_swell_height: u16,
-    midnight: Forecast,
-}
+/// TODO maybe move base stuff to internal mod
+// Also: make a more elegant abstraction than this?
+trait Border {
+    /// Title string (unpadded)
+    fn title(&self) -> String;
 
-impl<'a> Graph<'a> {
-    /// Panics on empty forecast; TODO handle this above
-    // TODO might make drawing easier to do more setup here
-    fn new(forecast: &'a Vec<Forecast>) -> Self {
-        // TODO some smartness for a good graph range.
-        let min_swell_height = 0;
-        let max_swell_height =
-            // 10.max(
-            forecast
-                .iter()
-                .map(|fc| fc.swell.max_breaking_height)
-                .min()
-                .unwrap_or(8)
-                + 2;
-        let midnight = forecast.first().unwrap().clone();
-        Self {
-            forecast,
-            min_swell_height,
-            max_swell_height,
-            midnight,
-        }
-    }
-
-    fn draw(self) -> Vec<Span> {
+    /// Wrap inner view with a titled border.
+    fn border(&self, inner: Vec<Line>) -> Vec<Span> {
         // Top border of the view manually handles border offsets
-        let mut spans = self.title();
+        let mut spans = self.border_top();
         spans.push(Span::newline());
 
         // Wrap border around each interior line
         let border_wrap = [Span::new(LINE_VERT), Span::newline(), Span::new(LINE_VERT)];
         spans.push(Span::new(LINE_VERT));
-        spans.extend(self.swell_graph().as_slice().join(&border_wrap[..]));
+        spans.extend(inner.as_slice().join(&border_wrap[..]));
         spans.push(Span::new(LINE_VERT));
         spans.push(Span::newline());
 
@@ -101,34 +70,18 @@ impl<'a> Graph<'a> {
         spans
     }
 
-    /// Gen title for the week's swell graph
-    fn title(&self) -> Vec<Span> {
+    /// Render border top title
+    fn border_top(&self) -> Vec<Span> {
+        let title = format!(" {} ", self.title());
         // top line
         let box_top = format!(
             "{CORNER_TOP_LEFT}{:─^width$}{CORNER_TOP_RIGHT}",
             "",
-            width = GRAPH_TITLE_WIDTH
+            width = title.len()
         );
         let top = format!("{:^width$}", box_top, width = VIEWPOINT_WIDTH);
         // middle line
-        let date_init = self
-            .forecast
-            .iter()
-            .map(|fc| fc.local_timestamp)
-            .min()
-            .unwrap()
-            .format("%a %b %d");
-        let date_end = self
-            .forecast
-            .iter()
-            .map(|fc| fc.local_timestamp)
-            .max()
-            .unwrap()
-            .format("%a %b %d");
-        let box_mid = format!(
-            "{TEE_LEFT}{date_init:^width$}-{date_end:^width$}{TEE_RIGHT}",
-            width = DAY_TITLE_WIDTH
-        );
+        let box_mid = format!("{TEE_LEFT}{title}{TEE_RIGHT}");
         let mid = format!(
             "{CORNER_TOP_LEFT}{:─^width$}{CORNER_TOP_RIGHT}",
             box_mid,
@@ -138,7 +91,7 @@ impl<'a> Graph<'a> {
         let box_btm = format!(
             "{CORNER_BTM_LEFT}{:─^width$}{CORNER_BTM_RIGHT}",
             "",
-            width = GRAPH_TITLE_WIDTH
+            width = title.len()
         );
         let btm = format!(
             "{LINE_VERT}{:^width$}{LINE_VERT}",
@@ -162,11 +115,66 @@ impl<'a> Graph<'a> {
             width = INTERIOR_VIEWPOINT_WIDTH
         ))]
     }
+}
+
+/// The swell graph over a multi-day forecast
+struct Graph<'a> {
+    forecast: &'a Vec<Forecast>,
+    min_swell_height: u16,
+    max_swell_height: u16,
+    midnight: Forecast,
+}
+
+impl<'a> Border for Graph<'_> {
+    /// Gen title for the week's swell graph
+    fn title(&self) -> String {
+        let date_init = self
+            .forecast
+            .iter()
+            .map(|fc| fc.local_timestamp)
+            .min()
+            .unwrap()
+            .format("%a %b %d");
+        let date_end = self
+            .forecast
+            .iter()
+            .map(|fc| fc.local_timestamp)
+            .max()
+            .unwrap()
+            .format("%a %b %d");
+        format!("{date_init} - {date_end}")
+    }
+}
+
+impl<'a> Graph<'a> {
+    const SWELL_GRAPH_HEIGHT: usize = 10;
+    /// Panics on empty forecast; TODO handle this above
+    // TODO might make drawing easier to do more setup here
+    fn new(forecast: &'a Vec<Forecast>) -> Self {
+        // TODO some smartness for a good graph range.
+        let min_swell_height = 0;
+        let max_swell_height =
+            // 10.max(
+            forecast
+                .iter()
+                .map(|fc| fc.swell.max_breaking_height)
+                .min()
+                .unwrap_or(8)
+                + 2;
+        let midnight = forecast.first().unwrap().clone();
+        Self {
+            forecast,
+            min_swell_height,
+            max_swell_height,
+            midnight,
+        }
+    }
+
+    fn draw(self) -> Vec<Span> {
+        self.border(self.swell_graph())
+    }
 
     /// Generate the swell graph within the border box
-    // TODO
-    // 2. possibly just go line by line rather than by vertical bins
-    // 3. let 0-index refer to bottom of the graph, and build it up (more readable)
     fn swell_graph(&self) -> Vec<Line> {
         let (legend_bin, legend_width) = self.legend_column();
         let num_bins = self.forecast.len();
@@ -178,15 +186,16 @@ impl<'a> Graph<'a> {
         // Initialize with blank spans of the correct width
         let mut bins = vec![
             vec![Span::new(format!("{:width$}", "", width = bin_width)); num_bins];
-            SWELL_GRAPH_HEIGHT
+            Self::SWELL_GRAPH_HEIGHT
         ];
-        let mut boundaries = vec![vec![Span::new(" "); num_bin_boundaries]; SWELL_GRAPH_HEIGHT];
+        let mut boundaries =
+            vec![vec![Span::new(" "); num_bin_boundaries]; Self::SWELL_GRAPH_HEIGHT];
 
         let mut last_height = None;
         for x in 0..num_bins {
             let fc = &self.forecast[x];
             // TODO height is reversed; maybe assemble graph bottom up?
-            let height = SWELL_GRAPH_HEIGHT - self.scale(fc.swell.abs_max_breaking_height);
+            let height = Self::SWELL_GRAPH_HEIGHT - self.scale(fc.swell.abs_max_breaking_height);
             let color = Self::color(fc);
 
             // Fill in bin
@@ -269,17 +278,19 @@ impl<'a> Graph<'a> {
             unit_str,
             width = legend_num_str_len
         );
-        let mut legend_bin =
-            vec![Span::new(format!("{:width$}", "", width = legend_width)); SWELL_GRAPH_HEIGHT];
+        let mut legend_bin = vec![
+            Span::new(format!("{:width$}", "", width = legend_width));
+            Self::SWELL_GRAPH_HEIGHT
+        ];
         legend_bin[0] = Span::new(legend_max);
-        legend_bin[SWELL_GRAPH_HEIGHT - 1] = Span::new(legend_min);
+        legend_bin[Self::SWELL_GRAPH_HEIGHT - 1] = Span::new(legend_min);
         (legend_bin, legend_width)
     }
 
     fn scale(&self, height: f32) -> usize {
         let swell_range = (self.max_swell_height - self.min_swell_height) as f32;
         let proportion_of_range = (height - self.min_swell_height as f32) / swell_range;
-        let scaled_to_graph = proportion_of_range * SWELL_GRAPH_HEIGHT as f32;
+        let scaled_to_graph = proportion_of_range * Self::SWELL_GRAPH_HEIGHT as f32;
         scaled_to_graph.round() as usize
     }
 
