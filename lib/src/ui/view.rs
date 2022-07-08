@@ -39,7 +39,7 @@ impl View {
     pub fn draw(forecast: Vec<Forecast>) -> Self {
         let mut spans = Vec::new();
         // Graph is uninteresting by day, so make it the full week
-        spans.extend(Graph::new(forecast.clone()).draw());
+        spans.extend(Graph::new(&forecast).draw());
 
         // This may be fragile; assumes 12am,3,6,9,12,3,6,9pm for each day
         // Could probably partition by datetime.day value
@@ -53,17 +53,17 @@ impl View {
 }
 
 /// The swell graph over a multi-day forecast
-struct Graph {
-    forecast: Vec<Forecast>,
+struct Graph<'a> {
+    forecast: &'a Vec<Forecast>,
     min_swell_height: u16,
     max_swell_height: u16,
     midnight: Forecast,
 }
 
-impl Graph {
+impl<'a> Graph<'a> {
     /// Panics on empty forecast; TODO handle this above
     // TODO might make drawing easier to do more setup here
-    fn new(forecast: Vec<Forecast>) -> Self {
+    fn new(forecast: &'a Vec<Forecast>) -> Self {
         // TODO some smartness for a good graph range.
         let min_swell_height = 0;
         let max_swell_height =
