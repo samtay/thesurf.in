@@ -32,14 +32,14 @@ impl View {
     pub fn draw(forecast: Vec<Forecast>) -> Self {
         let mut spans = Vec::new();
         // Graph is uninteresting by day, so make it the full week
-        spans.extend(Graph::new(&forecast).draw());
+        spans.extend(Graph::new(forecast.as_slice()).draw());
 
         // This may be fragile; assumes 12am,3,6,9,12,3,6,9pm for each day
         // Could probably partition by datetime.day value
         let days = forecast.split_inclusive(|fc| fc.local_timestamp.time().hour() == 21);
         for fc in days {
             spans.push(Span::newline());
-            spans.extend(Day::new(fc.to_vec()).draw());
+            spans.extend(Day::new(fc).draw());
         }
         Self { spans }
     }
@@ -65,7 +65,7 @@ trait Border {
         spans.push(Span::newline());
 
         // Bottom border of the view manually handles border offsets
-        spans.extend(self.closing());
+        spans.extend(self.border_bottom());
 
         spans
     }
@@ -108,7 +108,7 @@ trait Border {
     }
 
     /// Closing for the bottom of the border box
-    fn closing(&self) -> Vec<Span> {
+    fn border_bottom(&self) -> Vec<Span> {
         vec![Span::new(format!(
             "{CORNER_BTM_LEFT}{:─^width$}{CORNER_BTM_RIGHT}",
             "",
@@ -119,10 +119,10 @@ trait Border {
 
 /// The swell graph over a multi-day forecast
 struct Graph<'a> {
-    forecast: &'a Vec<Forecast>,
+    forecast: &'a [Forecast],
     min_swell_height: u16,
     max_swell_height: u16,
-    midnight: Forecast,
+    midnight: &'a Forecast,
 }
 
 impl<'a> Border for Graph<'_> {
@@ -148,9 +148,10 @@ impl<'a> Border for Graph<'_> {
 
 impl<'a> Graph<'a> {
     const SWELL_GRAPH_HEIGHT: usize = 10;
+
     /// Panics on empty forecast; TODO handle this above
     // TODO might make drawing easier to do more setup here
-    fn new(forecast: &'a Vec<Forecast>) -> Self {
+    fn new(forecast: &'a [Forecast]) -> Self {
         // TODO some smartness for a good graph range.
         let min_swell_height = 0;
         let max_swell_height =
@@ -161,7 +162,7 @@ impl<'a> Graph<'a> {
                 .min()
                 .unwrap_or(8)
                 + 2;
-        let midnight = forecast.first().unwrap().clone();
+        let midnight = forecast.first().unwrap();
         Self {
             forecast,
             min_swell_height,
@@ -246,8 +247,6 @@ impl<'a> Graph<'a> {
             last_height = Some(height);
         }
 
-        // TODO re-think this so we dont clone and shit
-        // Building bottom up might just let us pop off from Vec
         let mut lines = Vec::new();
         for ((legend, bin), boundary) in legend_bin.into_iter().zip(bins).zip(boundaries) {
             let mut line: Vec<Span> = vec![legend];
@@ -306,11 +305,13 @@ impl<'a> Graph<'a> {
     }
 }
 
-pub struct Day;
+pub struct Day<'a> {
+    forecast: &'a [Forecast],
+}
 
-impl Day {
-    pub fn new(_forecast: Vec<Forecast>) -> Self {
-        Self
+impl<'a> Day<'a> {
+    pub fn new(forecast: &'a [Forecast]) -> Self {
+        Self { forecast }
     }
     pub fn draw(self) -> Vec<Span> {
         vec![]
