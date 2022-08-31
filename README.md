@@ -1,9 +1,15 @@
 # todo
 
+### dev deps
+1. [rustup](https://rustup.rs/)
+2. [1pw cli](https://developer.1password.com/docs/cli/get-started#install)
+3. [just](https://github.com/casey/just#installation)
+
 ### misc
-1. drop the cli
+1. drop the cli?
 1. do basic key mapping: e.g. /Folly, /Folly-Beach, /FollyBeach,
    /folly-beach-sc, /folly-sc should all get to the same spot ID.
+1. if relying on shuttle.rs, could pick up sqlx/postgres?
 1. query only what we _want_ from MSW, e.g.
     http://magicseaweed.com/api/YOURAPIKEY/forecast/?spot_id=10&fields=timestamp,wind.*,condition.temperature
 1. damn, no tides from MSW! can do Marea API for $5/month: https://api.marea.ooo/doc/v2#get-/tides
@@ -32,6 +38,8 @@
 1. choose server e.g. linode
 1. auto GH action deployment
 1. secrets mgmt for msw api key
+1. or just use shuttle.rs? `op inject` and send over the api key? it's not
+   _that_ sensitive...
 
 # limitations
 

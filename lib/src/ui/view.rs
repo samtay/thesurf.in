@@ -280,14 +280,6 @@ impl Graph {
         let swell_range = (self.max_swell_height - self.min_swell_height) as f32;
         let proportion_of_range = (height - self.min_swell_height as f32) / swell_range;
         let scaled_to_graph = proportion_of_range * SWELL_GRAPH_HEIGHT as f32;
-        // TODO remove dbg
-        dbg!(
-            self.max_swell_height,
-            self.min_swell_height,
-            height,
-            proportion_of_range,
-            scaled_to_graph
-        );
         scaled_to_graph.round() as usize
     }
 
