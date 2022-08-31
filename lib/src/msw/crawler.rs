@@ -75,7 +75,14 @@ impl Spots {
 
     /// Create a new Spots struct, pulling data from the given path
     pub fn from_path<P: AsRef<Path>>(path: P) -> Result<Self> {
-        let spots = serde_json::from_reader(File::open(path)?)?;
+        let file = File::open(path.as_ref()).context(format!(
+            "Couldn't find spots json file at {:?}",
+            path.as_ref()
+        ))?;
+        let spots = serde_json::from_reader(file).context(format!(
+            "Couldn't parse file {:?} into spots json",
+            path.as_ref()
+        ))?;
         Ok(Self { spots })
     }
 
