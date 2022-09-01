@@ -53,6 +53,17 @@ trait Border {
     /// Title string (unpadded)
     fn title(&self) -> String;
 
+    /// Contents within the border
+    fn draw_inner(&self) -> Vec<Line>;
+
+    /// Default `draw()` is to border the contents within the border.
+    fn draw(self) -> Vec<Span>
+    where
+        Self: Sized,
+    {
+        self.border(self.draw_inner())
+    }
+
     /// Wrap inner view with a titled border.
     fn border(&self, inner: Vec<Line>) -> Vec<Span> {
         // Top border of the view manually handles border offsets
@@ -147,48 +158,12 @@ impl<'a> Border for Graph<'_> {
             .format("%a %b %d");
         format!("{date_init} - {date_end}")
     }
-}
 
-impl<'a> Graph<'a> {
-    const SWELL_GRAPH_HEIGHT: usize = 10;
-
-    /// Panics on empty forecast
-    pub fn new(forecast: &'a [Forecast]) -> Self {
-        assert!(!forecast.is_empty());
-        // TODO some smartness for a good graph range.
-        let min_swell_height = 0;
-        let max_swell_height =
-            // 10.max(
-            forecast
-                .iter()
-                .map(|fc| fc.swell.max_breaking_height)
-                .max()
-                .unwrap_or(5)
-                + 1;
-        let midnight = forecast.first().unwrap();
-        Self {
-            forecast,
-            min_swell_height,
-            max_swell_height,
-            midnight,
-        }
-    }
-
-    pub fn draw(self) -> Vec<Span> {
-        self.border(self.draw_inner())
-    }
-
-    /// Generate the swell graph within the border box
     fn draw_inner(&self) -> Vec<Line> {
         let (legend_bin, legend_width) = self.legend_column();
         let num_bins = self.forecast.len();
         let num_bin_boundaries = num_bins - 1;
         let bin_width = (INTERIOR_VIEWPOINT_WIDTH - legend_width - num_bin_boundaries) / num_bins;
-        dbg!(
-            INTERIOR_VIEWPOINT_WIDTH - legend_width - num_bin_boundaries,
-            num_bins,
-            bin_width
-        );
         let used_space = legend_width + num_bin_boundaries + num_bins * bin_width;
         let right_margin = INTERIOR_VIEWPOINT_WIDTH - used_space;
 
@@ -264,6 +239,32 @@ impl<'a> Graph<'a> {
         }
         lines
     }
+}
+
+impl<'a> Graph<'a> {
+    const SWELL_GRAPH_HEIGHT: usize = 10;
+
+    /// Panics on empty forecast
+    pub fn new(forecast: &'a [Forecast]) -> Self {
+        assert!(!forecast.is_empty());
+        // TODO some smartness for a good graph range.
+        let min_swell_height = 0;
+        let max_swell_height =
+            // 10.max(
+            forecast
+                .iter()
+                .map(|fc| fc.swell.max_breaking_height)
+                .max()
+                .unwrap_or(5)
+                + 1;
+        let midnight = forecast.first().unwrap();
+        Self {
+            forecast,
+            min_swell_height,
+            max_swell_height,
+            midnight,
+        }
+    }
 
     /// Generate the legend_column and its width
     /// Assumes 0 is the top of the graph
@@ -317,9 +318,10 @@ impl<'a> Graph<'a> {
 pub struct Day<'a> {
     forecast: &'a [Forecast],
     bin_width: usize,
+    right_margin: usize,
 }
 
-impl<'a> Border for Day<'_> {
+impl Border for Day<'_> {
     /// Gen title for the week's swell graph
     fn title(&self) -> String {
         let date = self
@@ -330,29 +332,6 @@ impl<'a> Border for Day<'_> {
             .local_timestamp
             .format("%a %b %d");
         format!("{date}")
-    }
-}
-
-impl<'a> Day<'a> {
-    /// Panics on empty forecast
-    pub fn new(forecast: &'a [Forecast]) -> Self {
-        assert!(!forecast.is_empty());
-
-        let num_forecasts = forecast.len();
-        // between each forecast, and between legend and first forecast
-        let num_boundaries = num_forecasts;
-        // Primary / Secondary / Wind / Weather
-        let legend_width = 9;
-        let bin_width = (INTERIOR_VIEWPOINT_WIDTH - num_boundaries - legend_width) / num_forecasts;
-
-        Self {
-            forecast,
-            bin_width,
-        }
-    }
-
-    pub fn draw(self) -> Vec<Span> {
-        self.border(self.draw_inner())
     }
 
     fn draw_inner(&self) -> Vec<Line> {
@@ -378,15 +357,86 @@ impl<'a> Day<'a> {
 
         swell_lines
     }
+}
+
+impl<'a> Day<'a> {
+    // Primary / Secondary / Wind / Weather
+    const LEGEND_WIDTH: usize = 9;
+    const BOUNDARY_WIDTH: usize = 1;
+
+    /// Panics on empty forecast
+    pub fn new(forecast: &'a [Forecast]) -> Self {
+        assert!(!forecast.is_empty());
+
+        // should be 8
+        let num_forecasts = forecast.len();
+        // between each forecast, and between legend and first forecast
+        let num_boundaries = num_forecasts;
+        let bin_width =
+            (INTERIOR_VIEWPOINT_WIDTH - num_boundaries * Self::BOUNDARY_WIDTH - Self::LEGEND_WIDTH)
+                / num_forecasts;
+        let used_space =
+            Self::LEGEND_WIDTH + num_boundaries * Self::BOUNDARY_WIDTH + num_forecasts * bin_width;
+        let right_margin = INTERIOR_VIEWPOINT_WIDTH - used_space;
+        dbg!(
+            &num_forecasts,
+            &bin_width,
+            &used_space,
+            &right_margin,
+            INTERIOR_VIEWPOINT_WIDTH,
+            VIEWPOINT_WIDTH
+        );
+
+        Self {
+            forecast,
+            bin_width,
+            right_margin,
+        }
+    }
 
     // TODO both optional! skip lines when not present? or 0ft?
     // TODO legend column with Primary / Secondary text
     fn swell(&self) -> Vec<Line> {
-        let mut primary_height = Vec::with_capacity(8);
-        let mut primary_period = Vec::with_capacity(8);
-        let mut primary_direction = Vec::with_capacity(8);
+        // Skip rendering if there's no swell?
+        if self
+            .forecast
+            .iter()
+            .map(|fc| fc.swell.components.primary)
+            .all(|c| c.is_none())
+        {
+            return vec![];
+        }
+
+        // 12am, 3am, 6am, 9am, 12pm, 3pm, 6pm, 9am
+        let len = self.forecast.len();
+        let mut primary_height = Vec::with_capacity(len);
+        let mut primary_period = Vec::with_capacity(len);
+        let mut primary_direction = Vec::with_capacity(len);
         let empty = Span::new(format!("{:^width$}", "", width = self.bin_width));
+        let boundary = Span::new(format!("{:^width$}", "", width = Self::BOUNDARY_WIDTH));
+
+        // Render the legend
+        primary_height.push(Span::new(format!(
+            "{:^width$}",
+            "↜",
+            width = Self::LEGEND_WIDTH
+        )));
+        primary_period.push(Span::new(format!(
+            "{:^width$}",
+            "Primary",
+            width = Self::LEGEND_WIDTH
+        )));
+        primary_direction.push(Span::new(format!(
+            "{:^width$}",
+            "↝",
+            width = Self::LEGEND_WIDTH
+        )));
+
+        // Render each timestamp forecast
         for fc in self.forecast {
+            primary_height.push(boundary.clone());
+            primary_period.push(boundary.clone());
+            primary_direction.push(boundary.clone());
             //"{arrow} {deg:.0}° {height:.1} {unit} @ {period}s\n",
             let component = fc.swell.components.primary;
             primary_height.push(
@@ -422,24 +472,34 @@ impl<'a> Day<'a> {
                     .unwrap_or_else(|| empty.clone()),
             );
         }
-        if self
-            .forecast
-            .iter()
-            .map(|fc| fc.swell.components.primary)
-            .all(|c| c.is_none())
-        {
-            vec![]
-        } else {
-            vec![primary_height, primary_period, primary_direction]
-        }
-        // handle secondary later
+        primary_height.push(Span::new(format!(
+            "{:width$}",
+            "",
+            width = self.right_margin
+        )));
+        primary_period.push(Span::new(format!(
+            "{:width$}",
+            "",
+            width = self.right_margin
+        )));
+        primary_direction.push(Span::new(format!(
+            "{:width$}",
+            "",
+            width = self.right_margin
+        )));
+
+        vec![primary_height, primary_period, primary_direction]
+
+        // TODOhandle secondary later?
     }
 
     fn wind(&self) -> Vec<Line> {
+        // 🌫
         vec![]
     }
 
     fn weather(&self) -> Vec<Line> {
+        // ☼ 🌣 🌤 🌧 🌩
         vec![]
     }
 }
