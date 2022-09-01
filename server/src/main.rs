@@ -15,8 +15,8 @@ async fn main() -> anyhow::Result<()> {
     HttpServer::new(move || {
         App::new()
             .service(ping)
-            .service(spot)
             .service(test_todo_remove)
+            .service(spot)
             .app_data(spot_data.clone())
     })
     .bind(("127.0.0.1", 8080))?
@@ -42,7 +42,7 @@ async fn spot(spot_name: web::Path<String>, spots: web::Data<Spots>) -> Result<i
     Ok(ui::render::<ui::Terminal>(forecast))
 }
 
-#[get("/test/")]
+#[get("/test")]
 async fn test_todo_remove() -> Result<impl Responder> {
     let file = File::open("./test/msw/forecast.json")?;
     let reader = BufReader::new(file);
