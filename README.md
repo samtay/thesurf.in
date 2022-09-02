@@ -9,6 +9,7 @@
 1. finish rendering daily view
 1. impls for HTML rendering
 1. user agent parse to decide HTML / ANSI
+1. allow passing through `&units=eu,us,uk`.
 
 ### misc
 1. drop the cli? requires api key unless I decide to go all in on scraping

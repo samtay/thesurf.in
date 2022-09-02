@@ -59,7 +59,7 @@ pub struct Wind {
     pub unit: UnitSpeed,
 }
 
-#[derive(Clone, Debug, Deserialize, PartialEq)]
+#[derive(Clone, Debug, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub struct Condition {
     pub pressure: u16,
@@ -70,7 +70,7 @@ pub struct Condition {
 }
 
 // or URL types
-#[derive(Clone, Debug, Deserialize, PartialEq)]
+#[derive(Clone, Debug, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub struct Charts {
     pub swell: Option<String>,
@@ -80,13 +80,15 @@ pub struct Charts {
     pub sst: Option<String>,
 }
 
-#[derive(Clone, Copy, Debug, Deserialize, PartialEq)]
+#[derive(Clone, Copy, Debug, Deserialize, PartialEq, Eq)]
 pub enum UnitLength {
     #[serde(rename = "ft")]
     Feet,
     #[serde(rename = "m")]
     Meters,
 }
+
+// TODO it might actually be less fragile to just keep these units as strings
 
 impl Display for UnitLength {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -97,21 +99,39 @@ impl Display for UnitLength {
     }
 }
 
-#[derive(Clone, Copy, Debug, Deserialize, PartialEq)]
+impl Display for UnitSpeed {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match *self {
+            Self::Mph => write!(f, "mph"),
+            Self::Kph => write!(f, "kph"),
+        }
+    }
+}
+
+impl Display for UnitTemperature {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match *self {
+            Self::C => write!(f, "°C"),
+            Self::F => write!(f, "°F"),
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "lowercase")]
 pub enum UnitSpeed {
     Mph,
     Kph,
 }
 
-#[derive(Clone, Copy, Debug, Deserialize, PartialEq)]
+#[derive(Clone, Copy, Debug, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "lowercase")]
 pub enum UnitTemperature {
     C,
     F,
 }
 
-#[derive(Clone, Copy, Debug, Deserialize, PartialEq)]
+#[derive(Clone, Copy, Debug, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "UPPERCASE")]
 pub enum CompassDirection {
     N,

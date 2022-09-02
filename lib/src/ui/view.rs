@@ -1,9 +1,9 @@
-use std::cmp::Ordering;
+use std::{cmp::Ordering, fmt::Display};
 
 use chrono::Timelike;
 use itertools::Itertools;
 
-use crate::msw::forecast::{CompassDirection, Forecast};
+use crate::msw::forecast::{CompassDirection, Forecast, SwellComponent, SwellComponents};
 
 /// Total width of the viewpoint output. If the user's viewpoint is smaller than
 /// this, output will look choppy, so we want to minimize it while keeping the
@@ -122,11 +122,11 @@ trait Border {
 
     /// Closing for the bottom of the border box
     fn border_bottom(&self) -> Vec<Span> {
-        vec![Span::new(format!(
+        vec![span!(
             "{CORNER_BTM_LEFT}{:─^width$}{CORNER_BTM_RIGHT}",
             "",
             width = INTERIOR_VIEWPOINT_WIDTH
-        ))]
+        )]
     }
 }
 
@@ -139,7 +139,7 @@ struct Graph<'a> {
     midnight: &'a Forecast,
 }
 
-impl<'a> Border for Graph<'_> {
+impl Border for Graph<'_> {
     /// Gen title for the week's swell graph
     fn title(&self) -> String {
         let date_init = self
@@ -169,7 +169,7 @@ impl<'a> Border for Graph<'_> {
 
         // Initialize with blank spans of the correct width
         let mut bins = vec![
-            vec![Span::new(format!("{:width$}", "", width = bin_width)); num_bins];
+            vec![span!("{:width$}", "", width = bin_width); num_bins];
             Self::SWELL_GRAPH_HEIGHT
         ];
         let mut boundaries =
@@ -186,12 +186,8 @@ impl<'a> Border for Graph<'_> {
             for (y, bin_line) in bins.iter_mut().enumerate() {
                 let span = &mut bin_line[x];
                 match height.cmp(&y) {
-                    Ordering::Equal => {
-                        *span = Span::new(format!("{:─^width$}", "", width = bin_width))
-                    }
-                    Ordering::Less => {
-                        *span = Span::new(format!("{:.^width$}", "", width = bin_width))
-                    }
+                    Ordering::Equal => *span = span!("{:─^width$}", "", width = bin_width),
+                    Ordering::Less => *span = span!("{:.^width$}", "", width = bin_width),
                     _ => {}
                 };
                 span.style().fg(color);
@@ -234,7 +230,7 @@ impl<'a> Border for Graph<'_> {
         for ((legend, bin), boundary) in legend_bin.into_iter().zip(bins).zip(boundaries) {
             let mut line: Vec<Span> = vec![legend];
             line.extend(bin.into_iter().interleave(boundary));
-            line.push(Span::new(format!("{:width$}", "", width = right_margin)));
+            line.push(span!("{:width$}", "", width = right_margin));
             lines.push(line);
         }
         lines
@@ -287,10 +283,8 @@ impl<'a> Graph<'a> {
         );
         assert_eq!(legend_max.len(), legend_min.len());
         let legend_width = legend_max.len();
-        let mut legend_bin = vec![
-            Span::new(format!("{:width$}", "", width = legend_width));
-            Self::SWELL_GRAPH_HEIGHT
-        ];
+        let mut legend_bin =
+            vec![span!("{:width$}", "", width = legend_width); Self::SWELL_GRAPH_HEIGHT];
         legend_bin[0] = Span::new(legend_max);
         legend_bin[Self::SWELL_GRAPH_HEIGHT - 1] = Span::new(legend_min);
         (legend_bin, legend_width)
@@ -334,34 +328,37 @@ impl Border for Day<'_> {
         format!("{date}")
     }
 
+    // Rows:
+    //   Time
+    //   Swell (primary, secondary if present)
+    //     Height, Direction, Arrow, Period
+    //   Wind
+    //     Arrow, Dir, Speed
+    //   Weather
+    //     Air temp
+    // Columns: 3hr intervals
     fn draw_inner(&self) -> Vec<Line> {
-        // Rows:
-        //   Swell (primary, secondary if present)
-        //     Height, Direction, Arrow, Period
-        //   Wind
-        //     Arrow, Dir, Speed
-        //   Weather
-        //     Air temp
-        // Columns: 3hr intervals
+        let skip_line = vec![span!("{:^width$}", "", width = INTERIOR_VIEWPOINT_WIDTH)];
 
-        // TODO no, with strict viewport we just need to force width
-        // TODO probably want to generate all strings first, and then choose a a
-        // minimum common width to keep all columns consistent?
-        // TODO also need to set max width for all cols based on viewport
-
-        // Note that we assume each span represents a single (row,col) cell,
-        // and will inspect the text to find the common width.
-        let swell_lines = self.swell();
-        let wind_lines = self.wind();
-        let weather_lines = self.weather();
-
-        swell_lines
+        let mut lines = vec![];
+        lines.extend(self.time());
+        lines.push(skip_line.clone());
+        lines.extend(self.primary_swell());
+        lines.push(skip_line.clone());
+        if self.is_secondary_present() {
+            lines.extend(self.secondary_swell());
+            lines.push(skip_line.clone());
+        }
+        lines.extend(self.wind());
+        lines.push(skip_line);
+        lines.extend(self.weather());
+        lines
     }
 }
 
 impl<'a> Day<'a> {
     // Primary / Secondary / Wind / Weather
-    const LEGEND_WIDTH: usize = 9;
+    const LEGEND_WIDTH: usize = 11;
     const BOUNDARY_WIDTH: usize = 1;
 
     /// Panics on empty forecast
@@ -378,14 +375,6 @@ impl<'a> Day<'a> {
         let used_space =
             Self::LEGEND_WIDTH + num_boundaries * Self::BOUNDARY_WIDTH + num_forecasts * bin_width;
         let right_margin = INTERIOR_VIEWPOINT_WIDTH - used_space;
-        dbg!(
-            &num_forecasts,
-            &bin_width,
-            &used_space,
-            &right_margin,
-            INTERIOR_VIEWPOINT_WIDTH,
-            VIEWPOINT_WIDTH
-        );
 
         Self {
             forecast,
@@ -394,113 +383,184 @@ impl<'a> Day<'a> {
         }
     }
 
-    // TODO both optional! skip lines when not present? or 0ft?
-    // TODO legend column with Primary / Secondary text
-    fn swell(&self) -> Vec<Line> {
-        // Skip rendering if there's no swell?
-        if self
-            .forecast
-            .iter()
-            .map(|fc| fc.swell.components.primary)
-            .all(|c| c.is_none())
-        {
-            return vec![];
-        }
-
-        // 12am, 3am, 6am, 9am, 12pm, 3pm, 6pm, 9am
-        let len = self.forecast.len();
-        let mut primary_height = Vec::with_capacity(len);
-        let mut primary_period = Vec::with_capacity(len);
-        let mut primary_direction = Vec::with_capacity(len);
-        let empty = Span::new(format!("{:^width$}", "", width = self.bin_width));
-        let boundary = Span::new(format!("{:^width$}", "", width = Self::BOUNDARY_WIDTH));
+    fn time(&self) -> Vec<Line> {
+        // u23F2
+        let mut time = Vec::with_capacity(2 * self.forecast.len() + 2);
 
         // Render the legend
-        primary_height.push(Span::new(format!(
-            "{:^width$}",
-            "↜",
-            width = Self::LEGEND_WIDTH
-        )));
-        primary_period.push(Span::new(format!(
-            "{:^width$}",
-            "Primary",
-            width = Self::LEGEND_WIDTH
-        )));
-        primary_direction.push(Span::new(format!(
-            "{:^width$}",
-            "↝",
-            width = Self::LEGEND_WIDTH
-        )));
+        time.push(span!("{:^width$}", "\u{23F2}", width = Self::LEGEND_WIDTH));
 
         // Render each timestamp forecast
         for fc in self.forecast {
-            primary_height.push(boundary.clone());
-            primary_period.push(boundary.clone());
-            primary_direction.push(boundary.clone());
-            //"{arrow} {deg:.0}° {height:.1} {unit} @ {period}s\n",
-            let component = fc.swell.components.primary;
-            primary_height.push(
-                component
-                    .map(|c| {
-                        let str = format!(
-                            "{height:.1} {unit}",
-                            height = c.height,
-                            unit = fc.swell.unit
-                        );
-                        Span::new(format!("{:^width$}", str, width = self.bin_width))
-                    })
-                    .unwrap_or_else(|| empty.clone()),
-            );
-            primary_period.push(
-                component
-                    .map(|c| {
-                        let str = format!("{period}s", period = c.period,);
-                        Span::new(format!("{:^width$}", str, width = self.bin_width))
-                    })
-                    .unwrap_or_else(|| empty.clone()),
-            );
-            primary_direction.push(
-                component
-                    .map(|c| {
-                        let str = format!(
-                            "{arrow} {deg:.0}°",
-                            arrow = compass_to_arrow(c.compass_direction),
-                            deg = c.direction
-                        );
-                        Span::new(format!("{:^width$}", str, width = self.bin_width))
-                    })
-                    .unwrap_or_else(|| empty.clone()),
-            );
+            time.push(self.boundary());
+            time.push({
+                span!(
+                    "{:^width$}",
+                    fc.local_timestamp.format("%l%P").to_string().trim(),
+                    width = self.bin_width
+                )
+            });
         }
-        primary_height.push(Span::new(format!(
-            "{:width$}",
-            "",
-            width = self.right_margin
-        )));
-        primary_period.push(Span::new(format!(
-            "{:width$}",
-            "",
-            width = self.right_margin
-        )));
-        primary_direction.push(Span::new(format!(
-            "{:width$}",
-            "",
-            width = self.right_margin
-        )));
+        time.push(span!("{:width$}", "", width = self.right_margin));
 
-        vec![primary_height, primary_period, primary_direction]
+        vec![time]
+    }
 
-        // TODOhandle secondary later?
+    fn primary_swell(&self) -> Vec<Line> {
+        if self.is_primary_present() {
+            self.swell("Primary", false, |sw: SwellComponents| sw.primary)
+        } else {
+            vec![]
+        }
+    }
+
+    fn secondary_swell(&self) -> Vec<Line> {
+        if self.is_secondary_present() {
+            self.swell("Secondary", true, |sw: SwellComponents| sw.secondary)
+        } else {
+            vec![]
+        }
+    }
+
+    fn swell<S, F>(&self, legend: S, flip_icon: bool, component: F) -> Vec<Line>
+    where
+        S: Display,
+        F: Fn(SwellComponents) -> Option<SwellComponent>,
+    {
+        const HEIGHT_IX: usize = 0;
+        const PERIOD_IX: usize = 1;
+        const DIR_IX: usize = 2;
+        let bin_width = self.bin_width;
+        let init = Vec::with_capacity(2 * self.forecast.len() + 2);
+        let mut swell = [init.clone(), init.clone(), init];
+        let empty = span!("{:^width$}", "", width = self.bin_width);
+
+        // Render the legend
+        let icons = ("↜", "↝");
+        swell[HEIGHT_IX].push(span!(
+            "{:^width$}",
+            if flip_icon { icons.1 } else { icons.0 },
+            width = Self::LEGEND_WIDTH
+        ));
+        swell[PERIOD_IX].push(span!("{:^width$}", legend, width = Self::LEGEND_WIDTH));
+        swell[DIR_IX].push(span!(
+            "{:^width$}",
+            if flip_icon { icons.0 } else { icons.1 },
+            width = Self::LEGEND_WIDTH
+        ));
+
+        // Render each timestamp forecast
+        for fc in self.forecast {
+            swell.iter_mut().for_each(|row| row.push(self.boundary()));
+            //"{arrow} {deg:.0}° {height:.1} {unit} @ {period}s\n",
+            if let Some(c) = component(fc.swell.components) {
+                swell[HEIGHT_IX].push({
+                    let str = format!(
+                        "{height:.1} {unit}",
+                        height = c.height,
+                        unit = fc.swell.unit
+                    );
+                    span!("{:^bin_width$}", str)
+                });
+                swell[PERIOD_IX].push({
+                    let str = format!("{period}s", period = c.period,);
+                    span!("{:^bin_width$}", str)
+                });
+                swell[DIR_IX].push({
+                    let str = format!(
+                        "{arrow} {deg:.0}°",
+                        arrow = compass_to_arrow(c.compass_direction),
+                        deg = c.direction
+                    );
+                    span!("{:^bin_width$}", str)
+                });
+            } else {
+                swell.iter_mut().for_each(|row| row.push(empty.clone()));
+            }
+        }
+        swell
+            .iter_mut()
+            .for_each(|row| row.push(span!("{:width$}", "", width = self.right_margin)));
+
+        swell.to_vec()
     }
 
     fn wind(&self) -> Vec<Line> {
-        // 🌫
-        vec![]
+        const SPEED_IX: usize = 0;
+        const DIR_IX: usize = 1;
+        let init = Vec::with_capacity(2 * self.forecast.len() + 2);
+        let mut wind = [init.clone(), init];
+
+        // Render the legend
+        wind[SPEED_IX].push(span!("{:^width$}", "🌫", width = Self::LEGEND_WIDTH));
+        wind[DIR_IX].push(span!("{:^width$}", " Wind", width = Self::LEGEND_WIDTH));
+
+        // Render each timestamp forecast
+        for fc in self.forecast {
+            wind.iter_mut().for_each(|row| row.push(self.boundary()));
+            wind[SPEED_IX].push({
+                let str = format!("{speed} {unit}", speed = fc.wind.speed, unit = fc.wind.unit);
+                span!("{:^width$}", str, width = self.bin_width)
+            });
+            wind[DIR_IX].push({
+                let str = format!(
+                    "{arrow} {deg:.0}°",
+                    arrow = compass_to_arrow(fc.wind.compass_direction),
+                    deg = fc.wind.direction
+                );
+                span!("{:^width$}", str, width = self.bin_width)
+            });
+        }
+        wind.iter_mut()
+            .for_each(|row| row.push(span!("{:width$}", "", width = self.right_margin)));
+
+        wind.to_vec()
     }
 
     fn weather(&self) -> Vec<Line> {
         // ☼ 🌣 🌤 🌧 🌩
-        vec![]
+        let mut weather = Vec::with_capacity(2 * self.forecast.len() + 2);
+
+        // Render the legend
+        weather.push(span!("{:^width$}", "🌤", width = Self::LEGEND_WIDTH));
+
+        // Render each timestamp forecast
+        for fc in self.forecast {
+            weather.push(self.boundary());
+            weather.push({
+                let str = format!(
+                    "{temp} {unit}",
+                    temp = fc.condition.temperature,
+                    unit = fc.condition.unit_temperature
+                );
+                span!("{:^width$}", str, width = self.bin_width)
+            });
+        }
+        weather.push(span!("{:width$}", "", width = self.right_margin));
+
+        vec![weather]
+    }
+
+    /// The span between columns
+    fn boundary(&self) -> Span {
+        //span!("{LINE_VERT}")
+        span!("{:^width$}", "", width = Self::BOUNDARY_WIDTH)
+    }
+
+    /// Check if any primary swell in the forecast
+    fn is_primary_present(&self) -> bool {
+        self.forecast
+            .iter()
+            .map(|fc| fc.swell.components.primary)
+            .any(|c| c.is_some())
+    }
+
+    /// Check if any secondary swell in the forecast
+    fn is_secondary_present(&self) -> bool {
+        self.forecast
+            .iter()
+            .map(|fc| fc.swell.components.secondary)
+            .any(|c| c.is_some())
     }
 }
 
@@ -509,7 +569,7 @@ type Line = Vec<Span>;
 
 /// A contiguous piece of content with consistent styles. These shouldn't need to
 /// nest.
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Span {
     pub content: Content,
     pub style: Style,
@@ -537,17 +597,25 @@ impl Span {
     }
 }
 
+macro_rules! span {
+    ($($arg:tt)*) => {{
+        let res = Span::new(format!($($arg)*));
+        res
+    }}
+}
+pub(super) use span;
+
 /// Content is typically just text in the form of a String. But I think it will
 /// make life easier to separate control chars like newlines. So, try not to
 /// sneak those into the text values.
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Content {
     Text(String),
     Newline,
 }
 
 /// Style attributes that can be added to a given span.
-#[derive(Copy, Clone, Debug, Default, PartialEq)]
+#[derive(Copy, Clone, Debug, Default, PartialEq, Eq)]
 pub struct Style {
     pub fg: Option<Color>,
     pub bg: Option<Color>,
@@ -587,7 +655,7 @@ fn compass_to_arrow(dir: CompassDirection) -> &'static str {
 
 /// The colors available for styling.
 // Add more as necessary
-#[derive(Copy, Clone, Debug, PartialEq)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub enum Color {
     Green,
     Blue,
