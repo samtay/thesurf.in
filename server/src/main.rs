@@ -1,4 +1,4 @@
-use std::{fs::File, io::BufReader};
+use std::{collections::HashMap, fs::File, io::BufReader};
 
 use actix_web::{
     error::{ErrorInternalServerError, ErrorNotFound},
@@ -45,8 +45,15 @@ async fn get_spot(spot_name: web::Path<String>, spots: web::Data<Spots>) -> Resu
 }
 
 #[get("/spots")]
-async fn list_spots(spots: web::Data<Spots>) -> impl Responder {
-    ui::render::<ui::Terminal>(spots.into_vec())
+async fn list_spots(
+    spots: web::Data<Spots>,
+    search: web::Query<HashMap<String, String>>,
+) -> impl Responder {
+    let mut spot_list = spots.into_vec();
+    if let Some(s) = search.keys().next() {
+        spot_list.retain(|(name, _)| name.contains(&**s));
+    }
+    ui::render::<ui::Terminal>(spot_list)
 }
 
 #[get("/test")]

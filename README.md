@@ -1,3 +1,31 @@
+# thesurf.in
+A console oriented surf forecast. **Still under development.**
+
+# usage
+You can view the content in your browser, but it's intended for the terminal.
+
+|Operation|Command|
+|---|---|
+|**Forecast**|`curl thesurf.in/<spot-name>`|
+|**List available spots**|`curl thesurf.in/spots`|
+|**Find spot by name**|`curl thesurf.in/spots?search_substring`|
+
+### examples
+
+```shell
+# get forecast for fire island
+curl thesurf.in/fire-island
+
+# find MSW's annoying name for mavericks
+curl thesurf.in/spots?mavericks
+
+# get the forecast for mavericks
+curl thesurf.in/mavericks-half-moon-bay
+
+# or with the MSW ID found from searching
+curl thesurf.in/162
+```
+
 # todo
 
 ### dev deps
