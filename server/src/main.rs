@@ -34,9 +34,11 @@ async fn ping() -> impl Responder {
 
 #[get("/{spot_id}")]
 async fn get_spot(spot_name: web::Path<String>, spots: web::Data<Spots>) -> Result<impl Responder> {
-    let spot_id = spots
-        .get_id(&**spot_name)
-        .ok_or_else(|| ErrorNotFound("spot name not found"))?;
+    let spot_id = spot_name.parse::<u16>().or_else(|_| {
+        spots
+            .get_id(&**spot_name)
+            .ok_or_else(|| ErrorNotFound("spot name not found"))
+    })?;
     let forecast = ForecastAPI::new()
         .get(spot_id)
         .await
