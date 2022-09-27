@@ -6,5 +6,5 @@ pub trait Render {
     // specific type
     type Output;
 
-    fn render(view: View) -> Self::Output;
+    fn render<V: Into<View>>(view: V) -> Self::Output;
 }

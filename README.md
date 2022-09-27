@@ -14,7 +14,8 @@
 ### misc
 1. drop the cli? requires api key unless I decide to go all in on scraping
 1. do basic key mapping: e.g. /Folly, /Folly-Beach, /FollyBeach,
-   /folly-beach-sc, /folly-sc should all get to the same spot ID.
+   /folly-beach-sc, /folly-sc should all get to the same spot ID. If relying on
+   a hashmap, could maybe rayon-parallelize a search for each key variation.
 1. if relying on shuttle.rs, could pick up sqlx/postgres?
 1. query only what we _want_ from MSW, e.g.
     http://magicseaweed.com/api/YOURAPIKEY/forecast/?spot_id=10&fields=timestamp,wind.*,condition.temperature

@@ -8,7 +8,7 @@ pub struct Browser;
 impl Render for Browser {
     type Output = String;
 
-    fn render(_view: View) -> Self::Output {
+    fn render<V: Into<View>>(_view: V) -> Self::Output {
         todo!()
     }
 }

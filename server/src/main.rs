@@ -4,7 +4,8 @@ use actix_web::{
     error::{ErrorInternalServerError, ErrorNotFound},
     get, web, App, HttpResponse, HttpServer, Responder, Result,
 };
-use lib::msw::{crawler::Spots, forecast::ForecastAPI};
+use lib::msw::crawler::Spots;
+use lib::msw::forecast::{Forecast, ForecastAPI};
 use lib::ui;
 
 // std::io::Error::new(std::io::ErrorKind::Other, e)
@@ -16,7 +17,8 @@ async fn main() -> anyhow::Result<()> {
         App::new()
             .service(ping)
             .service(test_todo_remove)
-            .service(spot)
+            .service(list_spots)
+            .service(get_spot)
             .app_data(spot_data.clone())
     })
     .bind(("127.0.0.1", 8080))?
@@ -31,7 +33,7 @@ async fn ping() -> impl Responder {
 }
 
 #[get("/{spot_id}")]
-async fn spot(spot_name: web::Path<String>, spots: web::Data<Spots>) -> Result<impl Responder> {
+async fn get_spot(spot_name: web::Path<String>, spots: web::Data<Spots>) -> Result<impl Responder> {
     let spot_id = spots
         .get_id(&**spot_name)
         .ok_or_else(|| ErrorNotFound("spot name not found"))?;
@@ -42,11 +44,16 @@ async fn spot(spot_name: web::Path<String>, spots: web::Data<Spots>) -> Result<i
     Ok(ui::render::<ui::Terminal>(forecast))
 }
 
+#[get("/spots")]
+async fn list_spots(spots: web::Data<Spots>) -> impl Responder {
+    ui::render::<ui::Terminal>(spots.into_vec())
+}
+
 #[get("/test")]
 async fn test_todo_remove() -> Result<impl Responder> {
     let file = File::open("./test/msw/forecast.json")?;
     let reader = BufReader::new(file);
-    let fc = serde_json::from_reader(reader)?;
+    let fc: Vec<Forecast> = serde_json::from_reader(reader)?;
     let output = ui::render::<ui::Terminal>(fc);
     Ok(output)
 }

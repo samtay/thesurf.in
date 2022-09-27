@@ -8,9 +8,9 @@ pub struct Terminal;
 impl Render for Terminal {
     type Output = String;
 
-    fn render(view: View) -> Self::Output {
+    fn render<V: Into<View>>(view: V) -> Self::Output {
         let mut output = String::new();
-        for span in view.spans {
+        for span in view.into().spans {
             if let Some(color) = span.style.fg {
                 output.push_str(to_code(color));
             }

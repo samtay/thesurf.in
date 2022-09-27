@@ -3,6 +3,7 @@ use std::{cmp::Ordering, fmt::Display};
 use chrono::Timelike;
 use itertools::Itertools;
 
+use super::base::*;
 use crate::msw::forecast::{CompassDirection, Forecast, SwellComponent, SwellComponents};
 
 /// Total width of the viewpoint output. If the user's viewpoint is smaller than
@@ -12,24 +13,9 @@ const VIEWPOINT_WIDTH: usize = 90;
 /// Viewpoint width minus the border chars
 const INTERIOR_VIEWPOINT_WIDTH: usize = VIEWPOINT_WIDTH - 2;
 
-const LINE_VERT: &str = "│";
-const LINE_HORIZONTAL: &str = "─";
-const CORNER_TOP_LEFT: &str = "┌";
-const CORNER_TOP_RIGHT: &str = "┐";
-const CORNER_BTM_LEFT: &str = "└";
-const CORNER_BTM_RIGHT: &str = "┘";
-const TEE_LEFT: &str = "┤";
-const TEE_RIGHT: &str = "├";
-
-/// A view is an AST representing the entire forecast, that can be rendered to
-/// different outputs.
-pub struct View {
-    pub spans: Vec<Span>,
-}
-
-impl View {
+impl From<Vec<Forecast>> for View {
     /// Transform a forecast into stylized text snippets
-    pub fn draw(forecast: Vec<Forecast>) -> Self {
+    fn from(forecast: Vec<Forecast>) -> Self {
         let mut spans = Vec::new();
         // Graph is uninteresting by day, so make it the full week
         spans.extend(Graph::new(forecast.as_slice()).draw());
@@ -564,81 +550,6 @@ impl<'a> Day<'a> {
     }
 }
 
-/// Internal type synonym to distinguish line breaks on inner widgets
-type Line = Vec<Span>;
-
-/// A contiguous piece of content with consistent styles. These shouldn't need to
-/// nest.
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub struct Span {
-    pub content: Content,
-    pub style: Style,
-}
-
-impl Span {
-    /// Create a new span with default styles
-    pub fn new(text: impl Into<String>) -> Self {
-        Self {
-            content: Content::Text(text.into()),
-            style: Style::default(),
-        }
-    }
-
-    /// Create a line break
-    pub fn newline() -> Self {
-        Self {
-            content: Content::Newline,
-            style: Style::default(),
-        }
-    }
-
-    pub fn style(&mut self) -> &mut Style {
-        &mut self.style
-    }
-}
-
-macro_rules! span {
-    ($($arg:tt)*) => {{
-        let res = Span::new(format!($($arg)*));
-        res
-    }}
-}
-pub(super) use span;
-
-/// Content is typically just text in the form of a String. But I think it will
-/// make life easier to separate control chars like newlines. So, try not to
-/// sneak those into the text values.
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub enum Content {
-    Text(String),
-    Newline,
-}
-
-/// Style attributes that can be added to a given span.
-#[derive(Copy, Clone, Debug, Default, PartialEq, Eq)]
-pub struct Style {
-    pub fg: Option<Color>,
-    pub bg: Option<Color>,
-    pub bold: bool,
-}
-
-impl Style {
-    pub fn fg(&mut self, color: Color) -> &mut Self {
-        self.fg = Some(color);
-        self
-    }
-
-    pub fn bg(&mut self, color: Color) -> &mut Self {
-        self.bg = Some(color);
-        self
-    }
-
-    pub fn bold(&mut self) -> &mut Self {
-        self.bold = true;
-        self
-    }
-}
-
 fn compass_to_arrow(dir: CompassDirection) -> &'static str {
     use CompassDirection::*;
     match dir {
@@ -650,37 +561,5 @@ fn compass_to_arrow(dir: CompassDirection) -> &'static str {
         SSW | SW | WSW => "↗",
         W => "→",
         WNW | NW | NNW => "↘",
-    }
-}
-
-/// The colors available for styling.
-// Add more as necessary
-#[derive(Copy, Clone, Debug, PartialEq, Eq)]
-pub enum Color {
-    Green,
-    Blue,
-    Red,
-}
-
-#[cfg(test)]
-mod tests {
-
-    use super::*;
-
-    #[test]
-    fn test_span_api() {
-        let mut span = Span::new("hi");
-        span.style().fg(Color::Blue).bg(Color::Red);
-        assert_eq!(
-            span,
-            Span {
-                content: Content::Text("hi".to_string()),
-                style: Style {
-                    fg: Some(Color::Blue),
-                    bg: Some(Color::Red),
-                    ..Style::default()
-                }
-            }
-        );
     }
 }

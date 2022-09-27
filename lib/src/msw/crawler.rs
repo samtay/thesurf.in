@@ -48,7 +48,9 @@ fn parse_spot_ids<T: Write>(html: &str, writer: T) -> Result<()> {
         let spot_name = anchor
             .inner_html()
             .to_lowercase()
+            .replace(|c| matches!(c, '/' | '(' | ')' | '\'' | '-' | '.'), " ")
             .split_whitespace()
+            .filter(|s| !s.is_empty())
             .collect::<Vec<_>>()
             .join("-");
         spot_json_map.insert(spot_name, spot_id.into());
@@ -90,6 +92,11 @@ impl Spots {
     pub fn get_id<'a>(&self, name: impl Into<&'a str>) -> Option<u16> {
         self.spots.get(name.into()).copied()
     }
+
+    /// Iterate over all spots (requires cloning)
+    pub fn into_vec(&self) -> Vec<(String, u16)> {
+        self.spots.clone().into_iter().collect()
+    }
 }
 
 #[cfg(test)]
@@ -106,5 +113,24 @@ mod tests {
         buffer.set_position(0);
         let spots: Value = serde_json::from_reader(buffer).unwrap();
         assert_eq!(*spots.get("ormond-beach").unwrap(), json!(4203));
+    }
+
+    #[test]
+    fn name_cleaning_works() {
+        let html = include_str!("../../../test/msw/site-map.html");
+        let mut buffer = Cursor::new(Vec::new());
+        parse_spot_ids(html, &mut buffer).unwrap();
+        buffer.set_position(0);
+        let spots: HashMap<String, u16> = serde_json::from_reader(buffer).unwrap();
+        for name in spots.into_keys() {
+            assert!(!name.contains('/'), "name contains /");
+            assert!(
+                !name.contains(|c| matches!(c, '(' | ')')),
+                "name contains (,)"
+            );
+            assert!(!name.contains('\''), "name contains '");
+            assert!(!name.contains("--"), "name contains consecutive hyphens");
+            assert!(!name.contains('.'), "name contains .");
+        }
     }
 }
