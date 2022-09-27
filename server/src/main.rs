@@ -1,14 +1,32 @@
-use std::{collections::HashMap, fs::File, io::BufReader};
+use std::{collections::HashMap, fs::File, future, io::BufReader};
 
 use actix_web::{
     error::{ErrorInternalServerError, ErrorNotFound},
-    get, web, App, HttpResponse, HttpServer, Responder, Result,
+    get,
+    http::{
+        header::{from_one_raw_str, USER_AGENT},
+        StatusCode,
+    },
+    web, App, HttpResponse, HttpServer, Responder, Result,
 };
 use lib::msw::crawler::Spots;
 use lib::msw::forecast::{Forecast, ForecastAPI};
 use lib::ui;
 
-// std::io::Error::new(std::io::ErrorKind::Other, e)
+const TERMINAL_USER_AGENTS: [&str; 12] = [
+    "aiohttp",
+    "curl",
+    "fetch",
+    "http_get",
+    "httpie",
+    "lwp-request",
+    "openbsd ftp",
+    "powershell",
+    "python-httpx",
+    "python-requests",
+    "wget",
+    "xh",
+];
 
 #[actix_web::main]
 async fn main() -> anyhow::Result<()> {
@@ -33,7 +51,11 @@ async fn ping() -> impl Responder {
 }
 
 #[get("/{spot_id}")]
-async fn get_spot(spot_name: web::Path<String>, spots: web::Data<Spots>) -> Result<impl Responder> {
+async fn get_spot(
+    spot_name: web::Path<String>,
+    spots: web::Data<Spots>,
+    render: RenderChoice,
+) -> Result<HttpResponse> {
     let spot_id = spot_name.parse::<u16>().or_else(|_| {
         spots
             .get_id(&**spot_name)
@@ -43,7 +65,14 @@ async fn get_spot(spot_name: web::Path<String>, spots: web::Data<Spots>) -> Resu
         .get(spot_id)
         .await
         .map_err(|e| ErrorInternalServerError(e.to_string()))?;
-    Ok(ui::render::<ui::Terminal>(forecast))
+    Ok(match render {
+        RenderChoice::Terminal => {
+            HttpResponse::build(StatusCode::OK).body(ui::render::<ui::Terminal>(forecast))
+        }
+        RenderChoice::Browser => HttpResponse::build(StatusCode::OK)
+            .content_type("text/html; charset=utf-8")
+            .body(ui::render::<ui::Browser>(forecast)),
+    })
 }
 
 #[get("/spots")]
@@ -65,6 +94,32 @@ async fn test_todo_remove() -> Result<impl Responder> {
     let fc: Vec<Forecast> = serde_json::from_reader(reader)?;
     let output = ui::render::<ui::Terminal>(fc);
     Ok(output)
+}
+
+enum RenderChoice {
+    Terminal,
+    Browser,
+}
+
+impl actix_web::FromRequest for RenderChoice {
+    type Error = actix_web::error::ParseError;
+    type Future = std::future::Ready<Result<Self, Self::Error>>;
+
+    #[inline]
+    fn from_request(req: &actix_web::HttpRequest, _: &mut actix_web::dev::Payload) -> Self::Future {
+        let header = req.headers().get(USER_AGENT);
+        let res = from_one_raw_str(header).map(|user_agent: String| {
+            if TERMINAL_USER_AGENTS
+                .iter()
+                .any(|agent| user_agent.contains(agent))
+            {
+                RenderChoice::Terminal
+            } else {
+                RenderChoice::Browser
+            }
+        });
+        future::ready(res)
+    }
 }
 
 // TODO add tests for each endpoint
