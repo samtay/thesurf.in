@@ -22,7 +22,7 @@ run-server:
 # run server on linode
 linode:
   ls ./data/spots.json || just provision-spots-json
-  nohup cargo run --bin server > ./server.log &
+  nohup cargo run --release --bin server > ./server.log &
 
 # provision data/spots.json
 provision-spots-json:
