@@ -33,8 +33,8 @@ async fn main() -> anyhow::Result<()> {
     let spot_data = web::Data::new(Spots::new()?);
     HttpServer::new(move || {
         App::new()
+            .service(index)
             .service(ping)
-            .service(test_todo_remove)
             .service(list_spots)
             .service(get_spot)
             .app_data(spot_data.clone())
@@ -43,6 +43,12 @@ async fn main() -> anyhow::Result<()> {
     .run()
     .await?;
     Ok(())
+}
+
+// TODO maybe simple ascii art for home page? with example calls?
+#[get("/")]
+async fn index(spots: web::Data<Spots>, render: RenderChoice) -> impl Responder {
+    get_spot_inner("pipeline", spots, render).await
 }
 
 #[get("/ping")]
@@ -56,9 +62,18 @@ async fn get_spot(
     spots: web::Data<Spots>,
     render: RenderChoice,
 ) -> Result<HttpResponse> {
+    get_spot_inner(spot_name.as_ref(), spots, render).await
+}
+
+async fn get_spot_inner(
+    spot_name: impl Into<String>,
+    spots: web::Data<Spots>,
+    render: RenderChoice,
+) -> Result<HttpResponse> {
+    let spot_name = spot_name.into();
     let spot_id = spot_name.parse::<u16>().or_else(|_| {
         spots
-            .get_id(&**spot_name)
+            .get_id(&*spot_name)
             .ok_or_else(|| ErrorNotFound("spot name not found"))
     })?;
     let forecast = ForecastAPI::new()
@@ -88,7 +103,7 @@ async fn list_spots(
 }
 
 #[get("/test")]
-async fn test_todo_remove() -> Result<impl Responder> {
+async fn _test_todo_remove() -> Result<impl Responder> {
     let file = File::open("./test/msw/forecast.json")?;
     let reader = BufReader::new(file);
     let fc: Vec<Forecast> = serde_json::from_reader(reader)?;

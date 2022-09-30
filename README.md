@@ -28,6 +28,11 @@ curl thesurf.in/162
 
 # todo
 
+1. HTTPS
+2. Homepage with ascii art instead of pipeline forecast
+3. Include the name of the spot in the output?
+4. Fix ugly mobile view (ngrok for quick iteration against android)
+
 ### dev deps
 1. [rustup](https://rustup.rs/)
 2. [1pw cli](https://developer.1password.com/docs/cli/get-started#install)
