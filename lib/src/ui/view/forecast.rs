@@ -373,8 +373,8 @@ impl<'a> Day<'a> {
         // u23F2
         let mut time = Vec::with_capacity(2 * self.forecast.len() + 2);
 
-        // Render the legend
-        time.push(span!("{:^width$}", "\u{23F2}", width = Self::LEGEND_WIDTH));
+        // Render the legend ( \u{23F2} for clock )
+        time.push(span!("{:^width$}", "Time", width = Self::LEGEND_WIDTH));
 
         // Render each timestamp forecast
         for fc in self.forecast {
@@ -394,7 +394,7 @@ impl<'a> Day<'a> {
 
     fn primary_swell(&self) -> Vec<Line> {
         if self.is_primary_present() {
-            self.swell("Primary", false, |sw: SwellComponents| sw.primary)
+            self.swell("Primary", |sw: SwellComponents| sw.primary)
         } else {
             vec![]
         }
@@ -402,13 +402,13 @@ impl<'a> Day<'a> {
 
     fn secondary_swell(&self) -> Vec<Line> {
         if self.is_secondary_present() {
-            self.swell("Secondary", true, |sw: SwellComponents| sw.secondary)
+            self.swell("Secondary", |sw: SwellComponents| sw.secondary)
         } else {
             vec![]
         }
     }
 
-    fn swell<S, F>(&self, legend: S, flip_icon: bool, component: F) -> Vec<Line>
+    fn swell<S, F>(&self, legend: S, component: F) -> Vec<Line>
     where
         S: Display,
         F: Fn(SwellComponents) -> Option<SwellComponent>,
@@ -421,19 +421,10 @@ impl<'a> Day<'a> {
         let mut swell = [init.clone(), init.clone(), init];
         let empty = span!("{:^width$}", "", width = self.bin_width);
 
-        // Render the legend
-        let icons = ("↜", "↝");
-        swell[HEIGHT_IX].push(span!(
-            "{:^width$}",
-            if flip_icon { icons.1 } else { icons.0 },
-            width = Self::LEGEND_WIDTH
-        ));
+        // Render the legend // ↜, ↝
+        swell[HEIGHT_IX].push(span!("{:^width$}", "", width = Self::LEGEND_WIDTH));
         swell[PERIOD_IX].push(span!("{:^width$}", legend, width = Self::LEGEND_WIDTH));
-        swell[DIR_IX].push(span!(
-            "{:^width$}",
-            if flip_icon { icons.0 } else { icons.1 },
-            width = Self::LEGEND_WIDTH
-        ));
+        swell[DIR_IX].push(span!("{:^width$}", "Swell", width = Self::LEGEND_WIDTH));
 
         // Render each timestamp forecast
         for fc in self.forecast {
@@ -477,8 +468,8 @@ impl<'a> Day<'a> {
         let init = Vec::with_capacity(2 * self.forecast.len() + 2);
         let mut wind = [init.clone(), init];
 
-        // Render the legend
-        wind[SPEED_IX].push(span!("{:^width$}", "🌫", width = Self::LEGEND_WIDTH));
+        // Render the legend // use 🌫
+        wind[SPEED_IX].push(span!("{:^width$}", " ", width = Self::LEGEND_WIDTH));
         wind[DIR_IX].push(span!("{:^width$}", " Wind", width = Self::LEGEND_WIDTH));
 
         // Render each timestamp forecast
@@ -507,8 +498,8 @@ impl<'a> Day<'a> {
         // ☼ 🌣 🌤 🌧 🌩
         let mut weather = Vec::with_capacity(2 * self.forecast.len() + 2);
 
-        // Render the legend
-        weather.push(span!("{:^width$}", "🌤", width = Self::LEGEND_WIDTH));
+        // Render the legend // unicode icons: ☼ 🌣 🌤 🌧 🌩
+        weather.push(span!("{:^width$}", "Air", width = Self::LEGEND_WIDTH));
 
         // Render each timestamp forecast
         for fc in self.forecast {

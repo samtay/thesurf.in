@@ -13,27 +13,30 @@ impl Render for Browser {
         // insert preamble
         output.push_str(
             r#"<html>
-                <style type="text/css">
-                    body {
-                        background: #282828;
-                        color: #ebdbb2;
-                    }
-                    pre {
-                        font-family: "DejaVu Sans Mono", "Lucida Console", monaco, monospace;
-                    }
-                    .bold {
-                        font-weight: bold;
-                    }
-                    .red {
-                        color: #cc241d;
-                    }
-                    .blue {
-                        color: #bbbbbb;
-                    }
-                    .green {
-                        color: #98971a;
-                    }
-                </style>
+                <head>
+                    <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Fira+Code">
+                    <style type="text/css">
+                        body {
+                            background: #282828;
+                            color: #ebdbb2;
+                        }
+                        pre {
+                            font-family: "Fira Code", "Courier New", "DejaVu Sans Mono", "Lucida Console", monospace;
+                        }
+                        .bold {
+                            font-weight: bold;
+                        }
+                        .red {
+                            color: #cc241d;
+                        }
+                        .blue {
+                            color: #bbbbbb;
+                        }
+                        .green {
+                            color: #98971a;
+                        }
+                    </style>
+                </head>
                 <body><pre>"#,
         );
         for span in view.into().spans {
