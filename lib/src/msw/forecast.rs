@@ -177,7 +177,12 @@ impl ForecastAPI {
         api_url
             .query_pairs_mut()
             .append_pair("spot_id", &spot_id.to_string());
-        let forecast = self.client.get(api_url).send().await?.json().await?;
+        let res = self.client.get(api_url).send().await;
+        dbg!(&res);
+        let res = res?;
+        let js = res.json().await;
+        dbg!(&js);
+        let forecast = js?;
         Ok(forecast)
     }
 }
