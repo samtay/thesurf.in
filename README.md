@@ -1,7 +1,7 @@
 # thesurf.in
 A console oriented surf forecast. **Still under development.**
 
-# usage
+## usage
 You can view the content in your browser, but it's intended for the terminal.
 
 |Operation|Command|
@@ -26,58 +26,29 @@ curl thesurf.in/mavericks-half-moon-bay
 curl thesurf.in/162
 ```
 
-# todo
-
-1. HTTPS
-2. Homepage with ascii art instead of pipeline forecast
-3. Include the name of the spot in the output?
-4. Fix ugly mobile view (ngrok for quick iteration against android)
-
-### dev deps
-1. [rustup](https://rustup.rs/)
-2. [1pw cli](https://developer.1password.com/docs/cli/get-started#install)
-3. [just](https://github.com/casey/just#installation)
-
-### todo
-1. finish rendering daily view
-1. impls for HTML rendering
-1. user agent parse to decide HTML / ANSI
-1. allow passing through `&units=eu,us,uk`.
-
-### misc
-1. drop the cli? requires api key unless I decide to go all in on scraping
-1. do basic key mapping: e.g. /Folly, /Folly-Beach, /FollyBeach,
-   /folly-beach-sc, /folly-sc should all get to the same spot ID. If relying on
-   a hashmap, could maybe rayon-parallelize a search for each key variation.
-1. if relying on shuttle.rs, could pick up sqlx/postgres?
-1. query only what we _want_ from MSW, e.g.
-    http://magicseaweed.com/api/YOURAPIKEY/forecast/?spot_id=10&fields=timestamp,wind.*,condition.temperature
-1. damn, no tides from MSW! can do Marea API for $5/month: https://api.marea.ooo/doc/v2#get-/tides or scrape MSW on the fly :/
-
-### deployment
-1. choose server e.g. linode
-1. auto GH action deployment
-1. secrets mgmt for msw api key
-1. or just use shuttle.rs? `op inject` and send over the api key? it's not
-   _that_ sensitive...
-
-### stretch: auto location
-1. crawl msw for lat/long of each spot (see [below](#crawl-lat-long)).
-1. use https://ipinfo.io/signup to get lat/long of request
-1. haversine to get closest one to request
-1. profit
-
-### stretch: crawl lat long
-1. go to https://magicseaweed.com/Ruby-Beach-Surf-Guide/5872/
-1. then find
-      data-guide='[{"spot":{"id":308,"name":"La Push","offset":-28800,"lat":47.9029,"lon":-124.634,
-  in the HTML
-1. so yeah, we'll need to crawl the sitemap and then cache this, possibly save it in git and
-  rarely update it?
-
-# limitations
+## limitations
 
 Most are accustomed to green == clean, blue == ok, red == choppy; but MSW
 doesn't provide me with whether or not the wind is on/off/cross shore. So I'm
 using the (probably not great) proxy of their faded stars. 0-1 faded => green,
 2 => blue, 3-5 => red.
+
+## dev deps
+1. [rustup](https://rustup.rs/)
+2. [1pw cli](https://developer.1password.com/docs/cli/get-started#install)
+3. [just](https://github.com/casey/just#installation)
+4. An MSW API key, which they are not currently offering to the general public.
+
+## todo
+
+1. HTTPS
+2. Homepage with ascii art instead of pipeline forecast
+3. Include the name of the spot in the output?
+4. Fix ugly mobile view (ngrok for quick iteration against android)
+5. Allow passing through `&units=eu,us,uk`.
+6. query only what we _want_ from MSW, e.g.
+    http://magicseaweed.com/api/YOURAPIKEY/forecast/?spot_id=10&fields=timestamp,wind.*,condition.temperature
+7. GH action deployment?
+8. Crawl MSW for lat/long (`data-guide` in HTML on spot page), use
+   https://ipinfo.io/signup to get location of request, use haversine to find
+   the spot closest, and return that forecast for the homepage.
