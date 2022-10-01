@@ -1,4 +1,4 @@
-use std::{collections::HashMap, fs::File, future, io::BufReader};
+use std::{collections::HashMap, future};
 
 use actix_web::{
     error::{ErrorInternalServerError, ErrorNotFound},
@@ -9,9 +9,9 @@ use actix_web::{
     },
     web, App, HttpResponse, HttpServer, Responder, Result,
 };
-use lib::msw::crawler::Spots;
-use lib::msw::forecast::{Forecast, ForecastAPI};
+use lib::msw::forecast::ForecastAPI;
 use lib::ui;
+use lib::{msw::crawler::Spots, ui::View};
 
 const TERMINAL_USER_AGENTS: [&str; 12] = [
     "aiohttp",
@@ -80,35 +80,20 @@ async fn get_spot_inner(
         .get(spot_id)
         .await
         .map_err(|e| ErrorInternalServerError(e.to_string()))?;
-    Ok(match render {
-        RenderChoice::Terminal => {
-            HttpResponse::build(StatusCode::OK).body(ui::render::<ui::Terminal>(forecast))
-        }
-        RenderChoice::Browser => HttpResponse::build(StatusCode::OK)
-            .content_type("text/html; charset=utf-8")
-            .body(ui::render::<ui::Browser>(forecast)),
-    })
+    Ok(render.into_response(forecast))
 }
 
 #[get("/spots")]
 async fn list_spots(
     spots: web::Data<Spots>,
     search: web::Query<HashMap<String, String>>,
+    render: RenderChoice,
 ) -> impl Responder {
     let mut spot_list = spots.into_vec();
     if let Some(s) = search.keys().next() {
         spot_list.retain(|(name, _)| name.contains(&**s));
     }
-    ui::render::<ui::Terminal>(spot_list)
-}
-
-#[get("/test")]
-async fn _test_todo_remove() -> Result<impl Responder> {
-    let file = File::open("./test/msw/forecast.json")?;
-    let reader = BufReader::new(file);
-    let fc: Vec<Forecast> = serde_json::from_reader(reader)?;
-    let output = ui::render::<ui::Terminal>(fc);
-    Ok(output)
+    render.into_response(spot_list)
 }
 
 enum RenderChoice {
@@ -137,4 +122,15 @@ impl actix_web::FromRequest for RenderChoice {
     }
 }
 
-// TODO add tests for each endpoint
+impl RenderChoice {
+    fn into_response(self, view: impl Into<View>) -> HttpResponse {
+        match self {
+            RenderChoice::Terminal => {
+                HttpResponse::build(StatusCode::OK).body(ui::render::<ui::Terminal>(view))
+            }
+            RenderChoice::Browser => HttpResponse::build(StatusCode::OK)
+                .content_type("text/html; charset=utf-8")
+                .body(ui::render::<ui::Browser>(view)),
+        }
+    }
+}

@@ -1688,7 +1688,6 @@ dependencies = [
  "actix-web",
  "anyhow",
  "lib",
- "serde_json",
 ]
 
 [[package]]

@@ -1,5 +1,5 @@
 # thesurf.in
-A console oriented surf forecast. **Still under development.**
+A console oriented surf forecast.
 
 ## usage
 You can view the content in your browser, but it's intended for the terminal.
@@ -41,7 +41,6 @@ using the (probably not great) proxy of their faded stars. 0-1 faded => green,
 
 ## todo
 
-1. HTTPS
 2. Homepage with ascii art instead of pipeline forecast
 3. Include the name of the spot in the output?
 4. Fix ugly mobile view (ngrok for quick iteration against android)
