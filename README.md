@@ -26,6 +26,16 @@ curl https://thesurf.in/mavericks-half-moon-bay
 curl https://thesurf.in/162
 ```
 
+### units
+You can append the query param `?units={uk,us,eu}` to the forecast endpoint, where
+
+- `us`: uses ft, mph, f
+- `uk`: uses ft, mph, c
+- `eu`: uses m, kph, c
+
+These are passed directly to MSW
+([docs](https://magicseaweed.com/docs/developers/59/units-of-measurement/9911/)).
+
 ## limitations
 
 Most are accustomed to green == clean, blue == ok, red == choppy; but MSW

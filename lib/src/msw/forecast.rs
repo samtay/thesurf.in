@@ -3,7 +3,7 @@ use std::fmt::Display;
 use anyhow::{anyhow, Result};
 use chrono::NaiveDateTime;
 use reqwest::{Client, Url};
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Debug, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
@@ -22,9 +22,9 @@ pub struct Forecast {
 #[derive(Clone, Copy, Debug, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct Swell {
-    pub min_breaking_height: u16,
+    pub min_breaking_height: f32,
     pub abs_min_breaking_height: f32,
-    pub max_breaking_height: u16,
+    pub max_breaking_height: f32,
     pub abs_max_breaking_height: f32,
     pub unit: UnitLength,
     pub components: SwellComponents,
@@ -51,19 +51,19 @@ pub struct SwellComponent {
 #[derive(Clone, Copy, Debug, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct Wind {
-    pub speed: u16,
+    pub speed: u32,
     pub direction: f32,
     pub compass_direction: CompassDirection,
-    pub chill: i16,
-    pub gusts: u16,
+    pub chill: i32,
+    pub gusts: u32,
     pub unit: UnitSpeed,
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub struct Condition {
-    pub pressure: u16,
-    pub temperature: i16,
+    pub pressure: u32,
+    pub temperature: i32,
     pub unit_pressure: String, // display purposes only
     #[serde(rename = "unit")]
     pub unit_temperature: UnitTemperature,
@@ -87,8 +87,6 @@ pub enum UnitLength {
     #[serde(rename = "m")]
     Meters,
 }
-
-// TODO it might actually be less fragile to just keep these units as strings
 
 impl Display for UnitLength {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -152,15 +150,31 @@ pub enum CompassDirection {
     NNW,
 }
 
+/// Unit options supported by MSW
+#[derive(Copy, Clone, Debug, Deserialize, Serialize)]
+#[serde(rename_all = "lowercase")]
+pub enum UnitType {
+    Uk,
+    Us,
+    Eu,
+}
+
 pub struct ForecastAPI {
     client: Client,
+    units: Option<UnitType>,
 }
 
 impl ForecastAPI {
     pub fn new() -> Self {
         Self {
             client: Client::new(),
+            units: None,
         }
+    }
+
+    pub fn units(mut self, unit_type: Option<UnitType>) -> Self {
+        self.units = unit_type;
+        self
     }
 
     /// Gets forecast for the given spot ID
@@ -174,9 +188,13 @@ impl ForecastAPI {
             .expect("https:// scheme implies URL can be a base")
             .push(api_key)
             .push("forecast");
-        api_url
-            .query_pairs_mut()
-            .append_pair("spot_id", &spot_id.to_string());
+        {
+            let mut query_pairs = api_url.query_pairs_mut();
+            query_pairs.append_pair("spot_id", &spot_id.to_string());
+            if let Some(ut) = self.units {
+                query_pairs.append_pair("units", serde_json::to_value(ut)?.as_str().unwrap());
+            }
+        }
         let forecast = self.client.get(api_url).send().await?.json().await?;
         Ok(forecast)
     }
@@ -275,8 +293,8 @@ mod tests {
             swell: Swell {
                 abs_min_breaking_height: 2.23,
                 abs_max_breaking_height: 3.48,
-                min_breaking_height: 2,
-                max_breaking_height: 3,
+                min_breaking_height: 2.0,
+                max_breaking_height: 3.0,
                 unit: UnitLength::Feet,
                 components: SwellComponents {
                     combined: Some(SwellComponent {

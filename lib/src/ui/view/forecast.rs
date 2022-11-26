@@ -4,7 +4,9 @@ use chrono::Timelike;
 use itertools::Itertools;
 
 use super::base::*;
-use crate::msw::forecast::{CompassDirection, Forecast, SwellComponent, SwellComponents};
+use crate::msw::forecast::{
+    CompassDirection, Forecast, SwellComponent, SwellComponents, UnitLength,
+};
 
 /// Total width of the viewpoint output. If the user's viewpoint is smaller than
 /// this, output will look choppy, so we want to minimize it while keeping the
@@ -120,8 +122,8 @@ trait Border {
 // TODO: gray out 6pm - 6am and add 6hr-x-axis ticks
 struct Graph<'a> {
     forecast: &'a [Forecast],
-    min_swell_height: u16,
-    max_swell_height: u16,
+    min_swell_height: f32,
+    max_swell_height: f32,
     midnight: &'a Forecast,
 }
 
@@ -229,16 +231,16 @@ impl<'a> Graph<'a> {
     /// Panics on empty forecast
     pub fn new(forecast: &'a [Forecast]) -> Self {
         assert!(!forecast.is_empty());
-        // TODO some smartness for a good graph range.
-        let min_swell_height = 0;
-        let max_swell_height =
-            // 10.max(
-            forecast
-                .iter()
-                .map(|fc| fc.swell.max_breaking_height)
-                .max()
-                .unwrap_or(5)
-                + 1;
+        let buffer = match forecast.first().unwrap().swell.unit {
+            UnitLength::Feet => 1.0,
+            UnitLength::Meters => 0.5,
+        };
+        let min_swell_height = 0.0;
+        let max_swell_height = forecast
+            .iter()
+            .map(|fc| fc.swell.max_breaking_height)
+            .fold(f32::NEG_INFINITY, |a, b| a.max(b))
+            + buffer;
         let midnight = forecast.first().unwrap();
         Self {
             forecast,

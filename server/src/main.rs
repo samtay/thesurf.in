@@ -9,9 +9,10 @@ use actix_web::{
     },
     web, App, HttpResponse, HttpServer, Responder, Result,
 };
-use lib::msw::forecast::ForecastAPI;
+use lib::msw::forecast::{ForecastAPI, UnitType};
 use lib::ui;
 use lib::{msw::crawler::Spots, ui::View};
+use serde::Deserialize;
 
 const TERMINAL_USER_AGENTS: [&str; 12] = [
     "aiohttp",
@@ -45,10 +46,20 @@ async fn main() -> anyhow::Result<()> {
     Ok(())
 }
 
+/// Units option wrapper. Exists for actix query params parsing.
+#[derive(Copy, Clone, Debug, Deserialize)]
+struct Units {
+    units: Option<UnitType>,
+}
+
 // TODO maybe simple ascii art for home page? with example calls?
 #[get("/")]
-async fn index(spots: web::Data<Spots>, render: RenderChoice) -> impl Responder {
-    get_spot_inner("pipeline", spots, render).await
+async fn index(
+    spots: web::Data<Spots>,
+    units: web::Query<Units>,
+    render: RenderChoice,
+) -> impl Responder {
+    get_spot_inner("pipeline", units.units, spots, render).await
 }
 
 #[get("/ping")]
@@ -59,14 +70,16 @@ async fn ping() -> impl Responder {
 #[get("/{spot_id}")]
 async fn get_spot(
     spot_name: web::Path<String>,
+    units: web::Query<Units>,
     spots: web::Data<Spots>,
     render: RenderChoice,
 ) -> Result<HttpResponse> {
-    get_spot_inner(spot_name.as_ref(), spots, render).await
+    get_spot_inner(spot_name.as_ref(), units.units, spots, render).await
 }
 
 async fn get_spot_inner(
     spot_name: impl Into<String>,
+    units: Option<UnitType>,
     spots: web::Data<Spots>,
     render: RenderChoice,
 ) -> Result<HttpResponse> {
@@ -77,6 +90,7 @@ async fn get_spot_inner(
             .ok_or_else(|| ErrorNotFound("spot name not found"))
     })?;
     let forecast = ForecastAPI::new()
+        .units(units)
         .get(spot_id)
         .await
         .map_err(|e| ErrorInternalServerError(e.to_string()))?;
