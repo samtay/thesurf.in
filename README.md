@@ -51,13 +51,12 @@ using the (probably not great) proxy of their faded stars. 0-1 faded => green,
 
 ## todo
 
-2. Homepage with ascii art instead of pipeline forecast
-3. Include the name of the spot in the output?
-4. Fix ugly mobile view (ngrok for quick iteration against android)
-5. Allow passing through `&units=eu,us,uk`.
-6. query only what we _want_ from MSW, e.g.
+1. Homepage with ascii art instead of pipeline forecast
+1. Include the name of the spot in the output?
+1. Fix ugly mobile view (ngrok for quick iteration against android)
+1. query only what we _want_ from MSW, e.g.
     http://magicseaweed.com/api/YOURAPIKEY/forecast/?spot_id=10&fields=timestamp,wind.*,condition.temperature
-7. GH action deployment?
-8. Crawl MSW for lat/long (`data-guide` in HTML on spot page), use
+1. GH action deployment?
+1. Crawl MSW for lat/long (`data-guide` in HTML on spot page), use
    https://ipinfo.io/signup to get location of request, use haversine to find
    the spot closest, and return that forecast for the homepage.
