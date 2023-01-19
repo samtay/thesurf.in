@@ -54,6 +54,7 @@ pub struct Wind {
     pub speed: u32,
     pub direction: f32,
     pub compass_direction: CompassDirection,
+    #[serde(deserialize_with = "int_fmt::deserialize")]
     pub chill: i32,
     pub gusts: u32,
     pub unit: UnitSpeed,
@@ -63,6 +64,7 @@ pub struct Wind {
 #[serde(rename_all = "camelCase")]
 pub struct Condition {
     pub pressure: u32,
+    #[serde(deserialize_with = "int_fmt::deserialize")]
     pub temperature: i32,
     pub unit_pressure: String, // display purposes only
     #[serde(rename = "unit")]
@@ -220,6 +222,18 @@ mod timestamp_fmt {
     }
 }
 
+// MSW sometimes sends "-0" which serde fails to serialize to an integer
+mod int_fmt {
+    use serde::{Deserialize, Deserializer};
+
+    pub fn deserialize<'de, D>(deserializer: D) -> Result<i32, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        f64::deserialize(deserializer).map(|x| x.round() as i32)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -353,6 +367,132 @@ mod tests {
         assert_eq!(
             expected_local_timestamp.to_string(),
             "2022-02-24 00:00:00".to_string()
+        );
+    }
+
+    #[test]
+    fn json_doesnt_bomb_on_neg_0() {
+        // For some reason MSW sends "-0" as a value for wind chill. Since we're
+        // parsing as an int, this fails deserialization.
+        // Side note: should really only request what we want from MSW but w/e
+        let msw_json = r#"{
+          "timestamp": 1645678800,
+          "localTimestamp": 1645660800,
+          "issueTimestamp": 1645660800,
+          "fadedRating": 1,
+          "solidRating": 1,
+          "swell": {
+            "absMinBreakingHeight": 2.23,
+            "absMaxBreakingHeight": 3.48,
+            "probability": 100,
+            "unit": "ft",
+            "minBreakingHeight": 2,
+            "maxBreakingHeight": 3,
+            "components": {
+              "combined": {
+                "height": 4,
+                "period": 10,
+                "direction": 271.53,
+                "compassDirection": "E"
+              },
+              "primary": {
+                "height": 4,
+                "period": 10,
+                "direction": 271.53,
+                "compassDirection": "E"
+              }
+            }
+          },
+          "wind": {
+            "speed": 7,
+            "direction": 335,
+            "compassDirection": "SSE",
+            "chill": -0,
+            "gusts": 12,
+            "unit": "mph"
+          },
+          "condition": {
+            "pressure": 1023,
+            "temperature": 20,
+            "unitPressure": "mb",
+            "unit": "c"
+          },
+          "charts": {
+            "swell": "https://charts-s3.msw.ms/archive/wave/750/21-1645671600-24.gif",
+            "period": "https://charts-s3.msw.ms/archive/wave/750/21-1645671600-25.gif",
+            "wind": "https://charts-s3.msw.ms/archive/gfs/750/21-1645671600-4.gif",
+            "pressure": "https://charts-s3.msw.ms/archive/gfs/750/21-1645671600-3.gif",
+            "sst": "https://charts-s3.msw.ms/archive/sst/750/21-1645671600-10.gif"
+          }
+        }"#;
+        let expected_local_timestamp = NaiveDateTime::from_timestamp(1645660800, 0);
+        let expected_forecast = Forecast {
+            timestamp: 1645678800,
+            local_timestamp: expected_local_timestamp,
+            faded_rating: 1, // or custom star rating enum
+            solid_rating: 1,
+            swell: Swell {
+                abs_min_breaking_height: 2.23,
+                abs_max_breaking_height: 3.48,
+                min_breaking_height: 2.0,
+                max_breaking_height: 3.0,
+                unit: UnitLength::Feet,
+                components: SwellComponents {
+                    combined: Some(SwellComponent {
+                        height: 4.0,
+                        period: 10,
+                        direction: 271.53,
+                        compass_direction: CompassDirection::E,
+                    }),
+                    primary: Some(SwellComponent {
+                        height: 4.0,
+                        period: 10,
+                        direction: 271.53,
+                        compass_direction: CompassDirection::E,
+                    }),
+                    secondary: None,
+                    tertiary: None,
+                },
+            },
+            wind: Wind {
+                speed: 7,
+                direction: 335.0,
+                compass_direction: CompassDirection::SSE,
+                chill: 0,
+                gusts: 12,
+                unit: UnitSpeed::Mph,
+            },
+            condition: Condition {
+                pressure: 1023,
+                temperature: 20,
+                //weather: 10,
+                unit_pressure: "mb".to_string(),
+                unit_temperature: UnitTemperature::C,
+            },
+            charts: Charts {
+                swell: Some(
+                    "https://charts-s3.msw.ms/archive/wave/750/21-1645671600-24.gif".to_string(),
+                ),
+                period: Some(
+                    "https://charts-s3.msw.ms/archive/wave/750/21-1645671600-25.gif".to_string(),
+                ),
+                wind: Some(
+                    "https://charts-s3.msw.ms/archive/gfs/750/21-1645671600-4.gif".to_string(),
+                ),
+                pressure: Some(
+                    "https://charts-s3.msw.ms/archive/gfs/750/21-1645671600-3.gif".to_string(),
+                ),
+                sst: Some(
+                    "https://charts-s3.msw.ms/archive/sst/750/21-1645671600-10.gif".to_string(),
+                ),
+            },
+        };
+        assert_eq!(
+            serde_json::from_str::<'_, Forecast>(msw_json)
+                .unwrap()
+                .wind
+                .chill,
+            expected_forecast.wind.chill
         );
     }
 }
