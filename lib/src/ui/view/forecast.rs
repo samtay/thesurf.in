@@ -279,8 +279,8 @@ impl<'a> Graph<'a> {
     }
 
     fn scale(&self, height: f32) -> usize {
-        let swell_range = (self.max_swell_height - self.min_swell_height) as f32;
-        let proportion_of_range = (height - self.min_swell_height as f32) / swell_range;
+        let swell_range = self.max_swell_height - self.min_swell_height;
+        let proportion_of_range = (height - self.min_swell_height) / swell_range;
         let scaled_to_graph = proportion_of_range * Self::SWELL_GRAPH_HEIGHT as f32;
         scaled_to_graph.round() as usize
     }
