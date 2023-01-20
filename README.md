@@ -1,5 +1,7 @@
-# thesurf.in
+# [thesurf.in](https://thesurf.in)
 A console oriented surf forecast.
+
+![2023-01-19-190036_990x769_scrot](https://user-images.githubusercontent.com/7246591/213608811-13cbe3b5-9d1c-44eb-a700-73d4be15c3de.png)
 
 ## usage
 You can view the content in your browser, but it's intended for the terminal.
@@ -38,13 +40,10 @@ These are passed directly to MSW
 
 ## limitations
 
-Most are accustomed to green == clean, blue == ok, red == choppy; but MSW
-doesn't provide me with whether or not the wind is on/off/cross shore. So I'm
-using the (probably not great) proxy of their faded stars. 0-1 faded => green,
-2 => blue, 3-5 => red.
+The MSW forecast data does not convey the relationship of the wind relative to the shore (e.g. on/off/cross shore). The red/blue/green ratings in the interface are instead a simple function of [MSW's faded stars](https://magicseaweed.com/help/forecast-table/star-rating). This function is not perfect, and could probably be improved.
 
 ## dev deps
-1. [rustup](https://rustup.rs/)
+1. [rust](https://rustup.rs/)
 2. [1pw cli](https://developer.1password.com/docs/cli/get-started#install)
 3. [just](https://github.com/casey/just#installation)
 4. An MSW API key, which they are not currently offering to the general public.
