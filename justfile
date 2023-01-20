@@ -19,14 +19,13 @@ watch-test:
 run-server:
   op run -- cargo run --bin server
 
-# ready server on linode
-ready-linode:
+# deploy on linode
+deploy-linode:
   cargo build --release --locked
   ls ./data/spots.json || just provision-spots-json
-  echo "kill existing server!"
-
-# run server on linode
-run-linode:
+  touch server.log server.log.old
+  cat server.log >> server.log.old
+  pkill -f target/release/server
   nohup cargo run --release --locked --bin server > ./server.log &
 
 # provision data/spots.json
