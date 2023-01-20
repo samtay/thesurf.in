@@ -25,7 +25,7 @@ deploy-linode:
   ls ./data/spots.json || just provision-spots-json
   touch server.log server.log.old
   cat server.log >> server.log.old
-  pkill -f target/release/server
+  pkill -xf target/release/server || true
   nohup cargo run --release --locked --bin server > ./server.log &
 
 # provision data/spots.json
