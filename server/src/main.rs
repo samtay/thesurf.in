@@ -38,7 +38,6 @@ async fn main() -> anyhow::Result<()> {
         App::new()
             .service(index)
             .service(ping)
-            .service(rip)
             .service(demo)
             .service(list_spots)
             .service(get_spot)
@@ -51,29 +50,25 @@ async fn main() -> anyhow::Result<()> {
 }
 
 /// Units option wrapper. Exists for actix query params parsing.
+#[allow(dead_code)]
 #[derive(Copy, Clone, Debug, Deserialize)]
 struct Units {
     units: Option<UnitType>,
 }
 
-// TODO maybe simple ascii art for home page? with example calls?
 #[get("/")]
 async fn index(
-    spots: web::Data<Spots>,
-    units: web::Query<Units>,
+    _spots: web::Data<Spots>,
+    _units: web::Query<Units>,
     render: RenderChoice,
 ) -> impl Responder {
-    get_spot_inner("pipeline", units.units, spots, render).await
+    //get_spot_inner("pipeline", units.units, spots, render).await
+    render.into_response(ui::Rip)
 }
 
 #[get("/ping")]
 async fn ping() -> impl Responder {
     HttpResponse::Ok().body("pong")
-}
-
-#[get("/rip")]
-async fn rip(render: RenderChoice) -> impl Responder {
-    render.into_response(ui::Rip)
 }
 
 #[get("/demo")]
@@ -85,15 +80,16 @@ async fn demo(render: RenderChoice) -> impl Responder {
 
 #[get("/{spot_id}")]
 async fn get_spot(
-    spot_name: web::Path<String>,
-    units: web::Query<Units>,
-    spots: web::Data<Spots>,
+    _spot_name: web::Path<String>,
+    _units: web::Query<Units>,
+    _spots: web::Data<Spots>,
     render: RenderChoice,
-) -> Result<HttpResponse> {
-    get_spot_inner(spot_name.as_ref(), units.units, spots, render).await
+) -> impl Responder {
+    //get_spot_inner(spot_name.as_ref(), units.units, spots, render).await
+    render.into_response(ui::Rip)
 }
 
-async fn get_spot_inner(
+async fn _get_spot_inner(
     spot_name: impl Into<String>,
     units: Option<UnitType>,
     spots: web::Data<Spots>,
