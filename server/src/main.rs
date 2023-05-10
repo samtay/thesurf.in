@@ -9,9 +9,11 @@ use actix_web::{
     },
     web, App, HttpResponse, HttpServer, Responder, Result,
 };
-use lib::msw::forecast::{ForecastAPI, UnitType};
+use lib::msw::{
+    crawler::Spots,
+    forecast::{ForecastAPI, UnitType},
+};
 use lib::ui;
-use lib::{msw::crawler::Spots, ui::View};
 use serde::Deserialize;
 
 const TERMINAL_USER_AGENTS: [&str; 12] = [
@@ -36,6 +38,7 @@ async fn main() -> anyhow::Result<()> {
         App::new()
             .service(index)
             .service(ping)
+            .service(rip)
             .service(list_spots)
             .service(get_spot)
             .app_data(spot_data.clone())
@@ -65,6 +68,11 @@ async fn index(
 #[get("/ping")]
 async fn ping() -> impl Responder {
     HttpResponse::Ok().body("pong")
+}
+
+#[get("/rip")]
+async fn rip(render: RenderChoice) -> impl Responder {
+    render.into_response(ui::Rip)
 }
 
 #[get("/{spot_id}")]
@@ -137,7 +145,7 @@ impl actix_web::FromRequest for RenderChoice {
 }
 
 impl RenderChoice {
-    fn into_response(self, view: impl Into<View>) -> HttpResponse {
+    fn into_response(self, view: impl Into<ui::View>) -> HttpResponse {
         match self {
             RenderChoice::Terminal => {
                 HttpResponse::build(StatusCode::OK).body(ui::render::<ui::Terminal>(view))
