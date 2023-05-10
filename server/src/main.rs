@@ -11,7 +11,7 @@ use actix_web::{
 };
 use lib::msw::{
     crawler::Spots,
-    forecast::{ForecastAPI, UnitType},
+    forecast::{Forecast, ForecastAPI, UnitType},
 };
 use lib::ui;
 use serde::Deserialize;
@@ -39,6 +39,7 @@ async fn main() -> anyhow::Result<()> {
             .service(index)
             .service(ping)
             .service(rip)
+            .service(demo)
             .service(list_spots)
             .service(get_spot)
             .app_data(spot_data.clone())
@@ -73,6 +74,13 @@ async fn ping() -> impl Responder {
 #[get("/rip")]
 async fn rip(render: RenderChoice) -> impl Responder {
     render.into_response(ui::Rip)
+}
+
+#[get("/demo")]
+async fn demo(render: RenderChoice) -> impl Responder {
+    let json = include_str!("../../test/msw/forecast.json");
+    let forecast: Vec<Forecast> = serde_json::from_str(json).unwrap();
+    render.into_response(forecast)
 }
 
 #[get("/{spot_id}")]

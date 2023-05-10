@@ -1682,6 +1682,7 @@ dependencies = [
  "anyhow",
  "lib",
  "serde",
+ "serde_json",
 ]
 
 [[package]]

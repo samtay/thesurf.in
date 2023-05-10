@@ -1,5 +1,10 @@
 # [thesurf.in](https://thesurf.in)
+
 A console oriented surf forecast.
+
+**Notice**: When Surfline acquired MSW, they shut down their API. This site is
+no longer functional. I've left a [demo](https://thesurf.in/demo) of an old
+forecast, at least until the domain expires.
 
 ![2023-01-19-190036_990x769_scrot](https://user-images.githubusercontent.com/7246591/213608811-13cbe3b5-9d1c-44eb-a700-73d4be15c3de.png)
 
@@ -8,7 +13,8 @@ You can view the content in your browser, but it's intended for the terminal.
 
 |Operation|Command|
 |---|---|
-|**Forecast**|`curl -L thesurf.in/<spot-name>`|
+|**Demo Forecast**|`curl -L thesurf.in/demo`|
+|~~**Spot Forecast**~~|~~`curl -L thesurf.in/<spot-name>`~~|
 |**List available spots**|`curl -L thesurf.in/spots`|
 |**Find spot by name**|`curl -L thesurf.in/spots?search_substring`|
 
@@ -40,22 +46,14 @@ These are passed directly to MSW
 
 ## limitations
 
-The MSW forecast data does not convey the relationship of the wind relative to the shore (e.g. on/off/cross shore). The red/blue/green ratings in the interface are instead a simple function of [MSW's faded stars](https://magicseaweed.com/help/forecast-table/star-rating). This function is not perfect, and could probably be improved.
+The MSW forecast data does not convey the relationship of the wind relative to
+the shore (e.g. on/off/cross shore). The red/blue/green ratings in the interface
+are instead a simple function of [MSW's faded
+stars](https://magicseaweed.com/help/forecast-table/star-rating). This function
+is not perfect, and could probably be improved.
 
 ## dev deps
 1. [rust](https://rustup.rs/)
 2. [1pw cli](https://developer.1password.com/docs/cli/get-started#install)
 3. [just](https://github.com/casey/just#installation)
 4. An MSW API key, which they are not currently offering to the general public.
-
-## todo
-
-1. Homepage with ascii art instead of pipeline forecast
-1. Include the name of the spot in the output?
-1. Fix ugly mobile view (ngrok for quick iteration against android)
-1. query only what we _want_ from MSW, e.g.
-    http://magicseaweed.com/api/YOURAPIKEY/forecast/?spot_id=10&fields=timestamp,wind.*,condition.temperature
-1. GH action deployment?
-1. Crawl MSW for lat/long (`data-guide` in HTML on spot page), use
-   https://ipinfo.io/signup to get location of request, use haversine to find
-   the spot closest, and return that forecast for the homepage.

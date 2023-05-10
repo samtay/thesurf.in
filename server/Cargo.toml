@@ -7,6 +7,7 @@ edition = "2021"
 
 [dependencies]
 actix-web = "4"
-anyhow = "1.0"
-serde = { version = "1.0", features = ["derive"] }
+anyhow.workspace = true
 lib = { path = "../lib" }
+serde.workspace = true
+serde_json.workspace = true
