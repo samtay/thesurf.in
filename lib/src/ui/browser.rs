@@ -57,7 +57,7 @@ impl Render for Browser {
         output.push_str(
             r#"
                 </pre>
-                <iframe src="https://ghbtns.com/github-btn.html?user=samtay&repo=thesurf.in&type=star&count=false" frameborder="0" scrolling="0" width="150" height="20" title="GitHub"></iframe>
+                <iframe src="https://ghbtns.com/github-btn.html?user=samtay&repo=thesurf.in&type=star&size=large&text=false" frameborder="0" scrolling="0" width="170" height="30" title="GitHub"></iframe>
                 </body>
             </html>
         "#,
