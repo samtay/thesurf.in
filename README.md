@@ -3,8 +3,8 @@
 A console oriented surf forecast.
 
 **Notice**: When Surfline acquired MSW, they shut down their API. This site is
-no longer functional. I've left a [demo](https://samtay.github.io/thesurf.in/demo) of an old
-forecast, at least until the domain expires.
+no longer functional. I've saved a [demo](https://samtay.github.io/thesurf.in/demo) of an old
+forecast on GitHub pages.
 
 ![2023-01-19-190036_990x769_scrot](https://user-images.githubusercontent.com/7246591/213608811-13cbe3b5-9d1c-44eb-a700-73d4be15c3de.png)
 
