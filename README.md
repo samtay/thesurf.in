@@ -14,7 +14,7 @@ You can view the content in your browser, but it's intended for the terminal.
 |Operation|Command|
 |---|---|
 |**Demo Forecast**|`curl -L thesurf.in/demo`|
-|~~**Spot Forecast**~~|~~`curl -L thesurf.in/<spot-name>`~~|
+|**Spot Forecast**~~|~~`curl -L thesurf.in/<spot-name>`|
 |**List available spots**|`curl -L thesurf.in/spots`|
 |**Find spot by name**|`curl -L thesurf.in/spots?search_substring`|
 
